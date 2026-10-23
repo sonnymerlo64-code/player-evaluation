@@ -6,8 +6,8 @@ A standalone, responsive player evaluation app for baseball coaches.
 - CSV roster import and manual player entry, grouped by team/age\n- Edit existing players without losing evaluations; improved CSV character encoding handling
 - Editable scoring library: Offense, Defense, Character (attitude, effort, body language)
 - 1–5 scores, practice/game/tryout evaluations, coach notes
-- Historical evaluations, first-vs-latest skill changes, category trend bars
-- Individual goals, drills/actions, success measures and review dates
+- Saved evaluations can be reopened and edited; historical score comparisons and category trends recalculate automatically
+- Suggested improvement plans auto-fill from low-scoring evaluation criteria, can be edited and saved for later access
 - Print/save PDF progress reports through browser printing
 - Supabase email/password login and shared data between signed-in coaches
 
