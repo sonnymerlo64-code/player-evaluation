@@ -12,7 +12,7 @@ A standalone, responsive player evaluation app for baseball coaches.
 - Supabase email/password login and shared data between signed-in coaches
 
 ## Deploy to GitHub and Vercel
-1. Create a **new GitHub repository** (do not overwrite the current GAME MGR or calendar repo).
+1. Create a **new GitHub repository** (use the player-evaluation repository).
 2. Upload `index.html`, `app.js`, `vercel.json`, and `schema.sql` to the repo root.
 3. Create a **new Supabase project**. In SQL Editor, run `schema.sql`.
 4. In Supabase Authentication → Users, create accounts for the coaches who need access.
