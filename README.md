@@ -1,4 +1,4 @@
-# Player Development
+# Player Evaluation
 
 A standalone, responsive player evaluation app for baseball coaches.
 
