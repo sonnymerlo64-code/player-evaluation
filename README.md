@@ -3,7 +3,7 @@
 A standalone, responsive player evaluation app for baseball coaches.
 
 ## Features
-- CSV roster import and manual player entry, grouped by team/age
+- CSV roster import and manual player entry, grouped by team/age\n- Edit existing players without losing evaluations; improved CSV character encoding handling
 - Editable scoring library: Offense, Defense, Character (attitude, effort, body language)
 - 1–5 scores, practice/game/tryout evaluations, coach notes
 - Historical evaluations, first-vs-latest skill changes, category trend bars
