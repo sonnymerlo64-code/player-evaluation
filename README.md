@@ -5,7 +5,7 @@ A standalone, responsive player evaluation app for baseball coaches.
 ## Features
 - CSV roster import and manual player entry, grouped by team/age\n- Edit existing players without losing evaluations; improved CSV character encoding handling
 - Editable scoring library: Offense, Defense, Character (attitude, effort, body language)
-- 1–5 scores, practice/game/tryout evaluations, coach notes
+- MLB-style 1–8 scouting scores, practice/game/tryout evaluations, coach notes
 - Saved evaluations can be reopened and edited; historical score comparisons and category trends recalculate automatically
 - Suggested improvement plans auto-fill from low-scoring evaluation criteria, can be edited and saved for later access
 - Print/save PDF progress reports through browser printing
@@ -28,3 +28,6 @@ This is an **internal coaching-team MVP**, not a commercial multi-tenant app. `s
 - Data is stored in Supabase, not in the browser. Configuration values (public URL and public key) are stored in local browser storage.
 - The initial criterion library is seeded when a coach first opens a new organization. Additional custom criteria can be added or disabled.
 - This version has no paid subscriptions, player/parent portal, automated reminders or automatic plan generation. Coaches write measurable improvement plans based on saved evaluations.
+
+## Scoring note
+The interface now uses an MLB-style 1–8 scale. Previously saved 1–5 ratings are preserved as entered; they are not automatically converted. For accurate trends, re-evaluate or edit earlier ratings using the new scale.
