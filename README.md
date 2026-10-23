@@ -1,4 +1,4 @@
-# GAME MGR — Player Development
+# Player Development
 
 A standalone, responsive player evaluation app for baseball coaches.
 
