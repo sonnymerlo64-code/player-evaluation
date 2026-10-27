@@ -67,7 +67,42 @@ $('cancelEvaluationEdit').onclick=resetEvaluation;
 $('saveEvaluation').onclick=async()=>{try{const id=$('evalPlayer').value;if(!id)throw Error('Select a player.');const scores={};document.querySelectorAll('[data-score]').forEach(s=>{if(s.value)scores[s.dataset.score]=Number(s.value)});if(!Object.keys(scores).length)throw Error('Score at least one criterion.');const payload={org,player_id:id,evaluated_at:$('evalDate').value,setting:$('evalSetting').value,coach_email:session.user.email,scores,strengths:$('strengths').value,weaknesses:$('weaknesses').value,notes:$('coachNotes').value};const editId=$('editingEvaluationId').value;if(editId){check(await db.from('pd_evaluations').update(payload).eq('id',editId).eq('org',org))}else{check(await db.from('pd_evaluations').insert(payload))}resetEvaluation();await loadAll();$('progressPlayer').value=id;renderProgress();renderSavedEvaluations();$('planPlayer').value=id;if(!editId){makePlanDraft();setTab('plans');message('Evaluation saved. Suggested improvement plan is ready to review and save.')}else{setTab('progress');message('Saved evaluation updated; trends recalculated.')}}catch(e){error(e)}};
 $('progressPlayer').onchange=()=>{renderProgress();renderSavedEvaluations()};
 $('savedEvaluationList').onclick=e=>{const btn=e.target.closest('[data-edit-eval]');if(btn)startEditEvaluation(btn.dataset.editEval)};
-$('printProgress').onclick=()=>window.print();
+
+function printCompleteEvaluation(){
+ const id=$('progressPlayer').value;
+ const player=players.find(x=>x.id===id);
+ if(!player){message('Choose a player first.');return}
+ const history=playerEvaluations(id),latest=history.at(-1),previous=history.length>1?history.at(-2):null;
+ if(!latest){message('Save an evaluation for this player first.');return}
+ const esc=escapeHtml;
+ const allMetrics=metrics.filter(m=>history.some(e=>scoreMap(e)[m.id]!=null));
+ const categoryOrder=['Character','Defense','Offense'];
+ const scores=scoreMap(latest),old=previous?scoreMap(previous):{};
+ const reportTable=(cols,rows)=>`<table><thead><tr>${cols.map(c=>`<th>${esc(c)}</th>`).join('')}</tr></thead><tbody>${rows.join('')}</tbody></table>`;
+ const metricSections=categoryOrder.map(cat=>{
+  const group=allMetrics.filter(m=>m.category===cat);
+  if(!group.length)return '';
+  return `<div class="report-block"><h2>${esc(cat)} — Complete Ratings</h2>${reportTable(['Skill / Trait','Current (1–8)','Previous','Change'],group.map(m=>`<tr><td>${esc(m.name)}${m.description?`<div class="report-muted">${esc(m.description)}</div>`:''}</td><td>${scores[m.id]??'Not scored'}</td><td>${old[m.id]??'—'}</td><td>${scores[m.id]!=null&&old[m.id]!=null?esc(scoreDelta(scores[m.id],old[m.id])):'—'}</td></tr>`))}</div>`;
+ }).join('');
+ const scored=allMetrics.filter(m=>scores[m.id]!=null).map(m=>({name:m.name,category:m.category,value:Number(scores[m.id])}));
+ const ranked=[...scored].sort((a,b)=>a.value-b.value);
+ const top=[...scored].sort((a,b)=>b.value-a.value).slice(0,3);
+ const needs=ranked.slice(0,3);
+ const relatedPlans=plans.filter(x=>x.player_id===id).sort((a,b)=>String(b.created_at||'').localeCompare(String(a.created_at||'')));
+ const planSections=relatedPlans.map((plan,i)=>{
+  const metric=metrics.find(m=>m.id===plan.metric_id),steps=parseSavedSteps(plan.actions);
+  return `<div class="report-block"><h3>Development Plan ${i+1}: ${esc(metric?.name||'Focus Skill')} — ${esc(plan.status||'Active')}</h3><p><b>Goal:</b> ${esc(plan.goal||'—')}</p><p><b>Review Date:</b> ${esc(plan.target_date||'Not set')}</p>${steps.length?steps.map((s,n)=>`<div class="report-step"><b>Step ${n+1}: ${esc(s.title)}</b><p>${esc(s.description)}</p></div>`).join(''):`<p><b>Practice Actions:</b> ${esc(plan.actions||'—')}</p>`}<p><b>Success Measure:</b> ${esc(plan.measure||'—')}</p></div>`;
+ }).join('');
+ const historyRows=history.map(e=>`<tr><td>${esc(e.evaluated_at)}</td><td>${esc(e.setting)}</td><td>${average(e,'Offense')}</td><td>${average(e,'Defense')}</td><td>${average(e,'Character')}</td></tr>`);
+ const sheet=$('completeReportSheet');
+ sheet.innerHTML=`<h1>PLAYER EVALUATION — COMPLETE REPORT</h1><div class="report-meta"><div><b>Player:</b> ${esc(fullName(player))}</div><div><b>Team:</b> ${esc(player.team)}</div><div><b>Jersey:</b> ${esc(player.jersey||'—')}</div></div><div class="report-meta"><div><b>Evaluation:</b> ${esc(latest.evaluated_at)}</div><div><b>Setting:</b> ${esc(latest.setting)}</div><div><b>Coach:</b> ${esc(latest.coach_email)}</div></div><h2>Overall Evaluation</h2><p><b>MLB-style scale:</b> 1 Poor · 2 Well Below Average · 3 Below Average · 4 Fringe Average · 5 Average · 6 Above Average · 7 Plus · 8 Elite. Ratings relative to age and competition level.</p>${reportTable(['Offense average','Defense average','Character average'],[`<tr><td>${average(latest,'Offense')} / 8</td><td>${average(latest,'Defense')} / 8</td><td>${average(latest,'Character')} / 8</td></tr>`])}<h2>Coach Assessment</h2><p><b>Strengths:</b> ${esc(latest.strengths||'Not entered')}</p><p><b>Areas for Improvement:</b> ${esc(latest.weaknesses||'Not entered')}</p><p><b>Coach Notes:</b> ${esc(latest.notes||'Not entered')}</p><h2>Rating-Based Development Priorities</h2><p><b>Highest-rated:</b> ${top.length?top.map(m=>`${esc(m.category)} — ${esc(m.name)} (${m.value}/8)`).join('; '):'Not available'}</p><p><b>Lowest-rated:</b> ${needs.length?needs.map(m=>`${esc(m.category)} — ${esc(m.name)} (${m.value}/8)`).join('; '):'Not available'}</p><p class="report-muted">Priorities are suggested from ratings. Coach judgment determines the final development focus.</p><div class="report-page"></div><h2>Complete Evaluation — All Scored Categories</h2>${metricSections}<h2>Evaluation History & Trends</h2><p>${history.length} saved evaluation(s). Changes compare with the immediately preceding evaluation.</p>${reportTable(['Date','Setting','Offense','Defense','Character'],historyRows)}<div class="report-page"></div><h2>Individual Player Development Plan</h2>${planSections||'<p>No saved development plan yet. Create and save an improvement plan in the app to include it in this report.</p>'}<h2>Next Evaluation</h2><p><b>Recommended review date:</b> ${esc(relatedPlans.find(p=>p.target_date)?.target_date||'To be determined by coach')}</p><div class="report-footer">${esc(fullName(player))} · FCA Player Evaluation · Generated ${esc(new Date().toLocaleDateString())} · Confidential coaching document</div>`;
+ document.body.classList.add('printing-complete');
+ const cleanup=()=>{document.body.classList.remove('printing-complete');window.removeEventListener('afterprint',cleanup)};
+ window.addEventListener('afterprint',cleanup);
+ window.print();
+}
+
+$('printProgress').onclick=printCompleteEvaluation;
 $('planPlayer').onchange=()=>{if(!$('editingPlanId').value)makePlanDraft()};
 $('generatePlan').onclick=makePlanDraft;
 $('cancelPlanEdit').onclick=resetPlan;
