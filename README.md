@@ -34,3 +34,6 @@ The interface now uses an MLB-style 1–8 scale. Previously saved 1–5 ratings 
 
 ## V5: Editable default improvement steps
 Each focus skill generates five editable steps based on its Offense, Defense, or Character category. Coaches can add, delete, reorder, and edit steps. Saved steps are serialized into the existing `pd_plans.actions` text field, so no database migration is required. Older free-text plans remain editable.
+
+## V6: Printable improvement plans
+Each saved plan includes Print / Save PDF. Print output is a clean US Letter portrait sheet with player/team, focus skill, goal, numbered development steps, success measure, review date, and signature lines. Use the browser print dialog to print or save as PDF.
