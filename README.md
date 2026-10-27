@@ -31,3 +31,6 @@ This is an **internal coaching-team MVP**, not a commercial multi-tenant app. `s
 
 ## Scoring note
 The interface now uses an MLB-style 1–8 scale. Previously saved 1–5 ratings are preserved as entered; they are not automatically converted. For accurate trends, re-evaluate or edit earlier ratings using the new scale.
+
+## V5: Editable default improvement steps
+Each focus skill generates five editable steps based on its Offense, Defense, or Character category. Coaches can add, delete, reorder, and edit steps. Saved steps are serialized into the existing `pd_plans.actions` text field, so no database migration is required. Older free-text plans remain editable.
