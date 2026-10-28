@@ -28,21 +28,166 @@ function renderScoreComparison(){const id=$('evalPlayer').value,last=playerEvalu
 function renderSavedEvaluations(){const id=$('progressPlayer').value,target=$('savedEvaluationList');if(!id){target.innerHTML='<p class="muted">Select a player to access saved evaluations.</p>';return}const history=playerEvaluations(id).slice().reverse();target.innerHTML=history.length?history.map(e=>`<div class="metric"><div><b>${escapeHtml(e.evaluated_at)} — ${escapeHtml(e.setting)}</b><div class="muted"><small>Offense ${average(e,'Offense')} · Defense ${average(e,'Defense')} · Character ${average(e,'Character')} · ${escapeHtml(e.coach_email)}</small></div></div><button class="noprint" data-edit-eval="${e.id}">Open / Edit</button></div>`).join(''):'<p>No evaluations saved for this player.</p>'}
 // Each evaluation owns its complete editable development plan, stored in pd_evaluations.skill_plans.
 let skillPlanDrafts={};
-const skillGuidance={
- 'Body Language':['Maintain engaged posture after mistakes and between pitches.','Respond to adversity with one positive verbal or nonverbal action.'],
- 'Range / First Step':['Read the ball off contact and take an efficient first step.','Complete reaction and crossover-step drills with balls hit in multiple directions.'],
- 'Hitting Mechanics':['Establish balance, load, and separation before the swing.','Use tee and front-toss video to verify swing path and contact position.'],
- 'Plate Discipline':['Identify pitch location early and commit only to the hitting zone.','Track takes and swing decisions in live at-bats or machine work.'],
- 'Throwing Accuracy':['Align feet and shoulders to target before release.','Complete target throws at increasing distance with recorded accuracy.'],
- 'Effort':['Demonstrate full-speed effort on every assigned rep.','Finish every play and transition promptly between drills.'],
- 'Attitude':['Respond to coaching with eye contact and an actionable adjustment.','Use a constructive response immediately following a mistake.'],
- 'Leadership':['Encourage a teammate during adversity.','Lead one preparation or communication responsibility each practice.'],
- 'Communication':['Call balls early and communicate assignments before every play.','Run situational communication drills with teammates.'],
- 'Fielding Fundamentals':['Set ready position before contact and field through the ball.','Complete short-hop, footwork and transfer repetitions.'],
- 'Baserunning':['Practice leads, reads, turns and controlled aggression.','Time first-to-third and home-to-first decisions in game scenarios.'],
- 'Bunting':['Set angle early and deaden the ball toward a designated target.','Complete station-based bunt placement repetitions.']
+const SKILL_DRILLS = {
+ "Attitude": [
+  "Identify one coaching correction each practice; repeat it back and apply it on the next repetition.",
+  "After a strikeout, error, or unfavorable call, use a 5-second reset: breathe, acknowledge, and return attention to the next play.",
+  "During three challenging drill sequences, respond to correction without arguing or disengaging.",
+  "At the end of each practice, give one specific example of accepting feedback and making an adjustment.",
+  "Coach records constructive responses across the next three practices and two games."
+ ],
+ "Body Language": [
+  "Establish a ready posture: head up, shoulders neutral, eyes on the next pitch, and hands prepared.",
+  "Practice a 5-second reset after a missed play: exhale, positive cue, and return to ready position.",
+  "In a controlled error drill, respond to five simulated mistakes without negative gestures or equipment slamming.",
+  "During scrimmage, maintain engaged posture between pitches and give a teammate one positive response after an error.",
+  "Coach tallies visible positive resets after mistakes over three practices and two games."
+ ],
+ "Effort": [
+  "Define full-speed expectations for home-to-first, defensive pursuit, backing up bases, and transitions.",
+  "Complete five timed home-to-first runs with consistent effort and safe mechanics; record times.",
+  "Finish every assigned defensive repetition by moving through the play and backing up the appropriate base.",
+  "During a scrimmage, demonstrate full-speed first steps and follow-through on every live ball.",
+  "Coach tracks hustle and completion on 10 consecutive observable opportunities across two sessions."
+ ],
+ "Focus": [
+  "Use a pre-pitch routine: check outs/runners, identify assignment, assume ready position, and lock onto the hitter.",
+  "Before each of 10 defensive repetitions, verbally state the likely play and required first move.",
+  "Complete two 8-minute distraction-controlled stations while staying engaged between repetitions.",
+  "In live scrimmage, communicate outs and situational responsibilities before each new hitter.",
+  "Coach records assignment readiness and correct pre-pitch decisions on 10 consecutive opportunities."
+ ],
+ "Leadership": [
+  "Choose one daily leadership action: organize a station, encourage a teammate, or model preparation.",
+  "Give at least two specific, constructive teammate acknowledgments during each practice.",
+  "Lead a brief pre-drill reminder of purpose, effort, and the team standard with coach support.",
+  "During adversity in scrimmage, initiate calm communication and help teammates reset.",
+  "Coach records three independent examples of positive influence over two weeks."
+ ],
+ "Arm Strength": [
+  "Review grip, stride direction, hip/torso sequencing, and follow-through with coach; avoid max-effort throwing until mechanics are sound.",
+  "Complete the team-approved progressive throwing routine at a comfortable distance, emphasizing clean mechanics.",
+  "Progress distance only when throws retain carry, accuracy, and pain-free mechanics; record distance and quality.",
+  "Make 8–10 position-specific throws after fielding or receiving, using game footwork without overthrowing.",
+  "Coach compares controlled throw carry and mechanics at the same distance; stop for pain or fatigue."
+ ],
+ "Baseball IQ": [
+  "Before each defensive rep, identify outs, runner locations, score situation, and primary/secondary plays.",
+  "Work through 10 coach-presented situations and verbally choose the correct base or cutoff responsibility.",
+  "Run 6 live reads with changing runners and ball locations; pause to explain each decision.",
+  "In scrimmage, call the likely play before the pitch and execute the correct decision after contact.",
+  "Coach logs correct decisions out of 10 comparable game situations and reviews missed reads."
+ ],
+ "Communication": [
+  "Review position-specific calls for fly balls, cutoffs, relays, bunt coverage, and backups.",
+  "Run 12 fly-ball communication repetitions using early, loud, repeated calls and clear ownership.",
+  "Practice 8 cutoff/relay situations: name the target, communicate the throw, and confirm coverage.",
+  "In live defense, make a clear pre-pitch assignment call and communicate on each playable ball.",
+  "Coach tracks timely, audible, correct calls in 10 relevant opportunities."
+ ],
+ "Fielding Fundamentals": [
+  "Set an athletic pre-pitch position with glove presented and feet active before contact.",
+  "Complete 15 short-hop and routine-ground-ball reps emphasizing approach angle, glove out front, and secure transfer.",
+  "Add 12 forehand/backhand and move-through reps with correct footwork before throwing.",
+  "Field 10 game-speed balls and make accurate throws using appropriate footwork for each angle.",
+  "Coach records clean fields and controlled transfers out of 20 comparable reps."
+ ],
+ "Position-Specific Skills": [
+  "Identify the primary position and list its three highest-frequency responsibilities with the coach.",
+  "Complete 12 position-specific footwork and receiving/fielding reps for the player’s actual position.",
+  "Practice 8 situational responsibilities: coverage, backup, cutoff, tag, or throw selection as appropriate.",
+  "Execute the same responsibilities in a live defensive inning with coach observation.",
+  "Coach checks correct positioning and execution on 10 position-specific opportunities; customize these drills for the assigned position."
+ ],
+ "Range / First Step": [
+  "Start in a balanced ready position and identify contact cues before each rep.",
+  "Complete 12 left/right reaction reps from a neutral stance; focus on first movement without a false step.",
+  "Complete 12 crossover/drop-step and angle-to-ball reps using varied ball direction and speed.",
+  "Field 10 balls placed just outside routine range, using efficient routes and a controlled finish.",
+  "Coach records correct first-step direction and balls reached out of 20 comparable reps."
+ ],
+ "Throwing Accuracy": [
+  "Check grip, alignment, footwork to target, and release point on 10 stationary throws.",
+  "Complete 20 target throws at comfortable distance; record hits within a defined target box.",
+  "Add 12 throws after moving left/right or charging a ball while maintaining target alignment.",
+  "Execute 10 game-speed throws to position-appropriate bases with a receiving teammate.",
+  "Coach compares accurate throws out of 20 at the same distance and task difficulty."
+ ],
+ "Baserunning": [
+  "Review stance, first three steps, running through first, and proper turns at each base.",
+  "Time 5 home-to-first starts and practice 10 controlled turns around first base.",
+  "Practice 12 coach-cued reads on balls in dirt, line drives, and fly balls with correct freeze/advance decisions.",
+  "Run 8 first-to-third or scoring decisions in live simulated situations with coach feedback.",
+  "Coach records correct reads and decisions out of 10 comparable opportunities; use times only where relevant."
+ ],
+ "Bunting": [
+  "Establish balanced bunt stance, safe bat position, and early angle control.",
+  "Place 15 stationary-feed bunts toward first- and third-base target zones; record successful placements.",
+  "Complete 12 soft-toss bunts, adjusting angle to deaden the ball and avoid popping it up.",
+  "Execute 8 situational sacrifice or push-bunt attempts with a runner and defense in place.",
+  "Coach records fair, controlled target-zone bunts out of 20 comparable attempts."
+ ],
+ "Contact / Barrel Control": [
+  "Review strike-zone contact point, head stability, and barrel path with video or coach observation.",
+  "Hit 3 sets of 10 tee balls to defined middle/opposite/pull targets while tracking hard, centered contact.",
+  "Complete 3 sets of 8 front-toss swings with varied locations and the same centered-contact objective.",
+  "Progress to 15 controlled machine/live swings; chart solid contact and mishit locations.",
+  "Compare solid-contact percentage over 20 comparable swings and review contact-point video."
+ ],
+ "Hitting Mechanics": [
+  "Identify one priority movement from video: stance/balance, load, separation, stride, or bat path; avoid changing everything at once.",
+  "Complete 3 sets of 8 slow-motion dry swings or tee reps rehearsing the selected movement.",
+  "Complete 3 sets of 10 tee swings and 2 sets of 8 front-toss swings while checking balance and contact position.",
+  "Advance to 15 machine/live swings only when the movement is repeatable at controlled speed.",
+  "Compare before/after swing video and coach-rated execution over 20 comparable swings."
+ ],
+ "Plate Discipline": [
+  "Define the player’s strike-zone plan and one preferred attack zone before the session.",
+  "Take 20 tracked pitches without swinging; call ball/strike and location before feedback.",
+  "Complete 20 mixed front-toss or machine pitches; chart swings at strikes versus chase swings outside the zone.",
+  "In 8 simulated at-bats, use count-specific plans and record takes, chases, and swing decisions.",
+  "Compare chase rate and correct take/swing decisions over 20–30 tracked pitches."
+ ],
+ "Situational Hitting": [
+  "Review the hitter’s approach for runner on third under two outs, runner on second no outs, and two-strike counts.",
+  "Complete 10 opposite-field or middle-of-field tee reps for the assigned runner-advancement situation.",
+  "Run 12 front-toss reps with a coach calling out count, outs, and runner situation before each pitch.",
+  "Complete 8 live situational at-bats, scoring whether the decision and ball-in-play approach fit the assignment.",
+  "Coach records appropriate approach and execution out of 10 comparable situational opportunities."
+ ]
 };
-function makeSkillPlan(m,score){const next=Math.min(8,Number(score)+1), guidance=skillGuidance[m.name]||[m.description||`Develop ${m.name} fundamentals.`,`Perform deliberate ${m.name} repetitions with coach feedback.`];const generic=PLAN_TEMPLATES[m.category]||PLAN_TEMPLATES.Defense;return {metric_id:m.id,category:m.category,name:m.name,score:Number(score),goal:`Improve ${m.name} from ${score}/8 to ${next}/8 by the next evaluation.`,steps:[{title:'Skill foundation',description:guidance[0]},{title:'Controlled repetitions',description:guidance[1]},{title:'Progressive challenge',description:generic[2]},{title:'Game application',description:generic[3]},{title:'Reevaluation',description:generic[4]}],measure:`Coach observes consistent ${m.name} execution in practice and games and reevaluates at ${next}/8 or higher.`}}
+const SKILL_STEP_TITLES=['Define the skill','Controlled practice','Progressive challenge','Game-speed application','Measure progress'];
+function skillScoreGoal(m,score){const s=Math.max(1,Math.min(8,Number(score)||1)),next=Math.min(8,s+1);return `Improve ${m.name} from ${s}/8 toward ${next}/8 by the next evaluation, using the specific drills and observable success measure below.`}
+function skillPlanMeasure(m,score){const n=m.name;const s=Number(score);const base={
+ 'Attitude':'Coach observes constructive responses to feedback and adversity in at least 8 of 10 relevant situations.',
+ 'Body Language':'Coach observes positive reset and engaged posture after at least 8 of 10 mistakes or difficult moments.',
+ 'Effort':'Coach observes full-speed, complete effort on at least 9 of 10 relevant plays or repetitions.',
+ 'Focus':'Correct pre-pitch assignment and ready position on at least 8 of 10 observed plays.',
+ 'Leadership':'At least three independent examples of positive leadership documented over two weeks.',
+ 'Arm Strength':'Consistent pain-free mechanics and improved throw carry at the same distance and task difficulty.',
+ 'Baseball IQ':'Correct defensive choice on at least 8 of 10 comparable game situations.',
+ 'Communication':'Timely, clear, correct communication on at least 8 of 10 relevant opportunities.',
+ 'Fielding Fundamentals':'At least 16 clean fields and controlled transfers in 20 comparable repetitions.',
+ 'Position-Specific Skills':'Correct positioning and execution on at least 8 of 10 position-specific situations.',
+ 'Range / First Step':'Correct initial direction and efficient route on at least 16 of 20 comparable reads.',
+ 'Throwing Accuracy':'At least 16 accurate throws to a defined target in 20 comparable repetitions.',
+ 'Baserunning':'Correct reads and decisions on at least 8 of 10 comparable baserunning situations.',
+ 'Bunting':'At least 14 controlled, fair target-zone bunts in 20 comparable attempts.',
+ 'Contact / Barrel Control':'At least 14 centered, solid-contact swings in 20 comparable pitches.',
+ 'Hitting Mechanics':'Repeat the selected priority movement on at least 16 of 20 comparable swings, confirmed by video.',
+ 'Plate Discipline':'At least 16 correct swing/take decisions in 20 tracked pitches, with fewer chase swings.',
+ 'Situational Hitting':'Appropriate approach and execution on at least 8 of 10 comparable situational at-bats.'
+ }[n]||`Coach documents measurable ${n} execution in comparable practice and game situations.`;
+ return `${base} Reevaluate the MLB 1–8 rating (current ${s}/8) using multiple observations, not one drill.`;
+}
+function stepsForSkill(m){const raw=SKILL_DRILLS[m.name];if(raw)return raw.map((description,i)=>({title:SKILL_STEP_TITLES[i],description}));const description=m.description?.trim()||m.name;return [
+ {title:'Define the skill',description:`Coach identifies the exact observable behavior for ${m.name}: ${description}. Agree on a baseline.`},
+ {title:'Controlled practice',description:`Complete 10 focused ${m.name} repetitions or observations and record successful executions using the agreed standard.`},
+ {title:'Progressive challenge',description:`Repeat ${m.name} in 10 more difficult or varied situations while recording results.`},
+ {title:'Game-speed application',description:`Apply ${m.name} during 10 realistic baseball situations; coach records correct decisions and execution.`},
+ {title:'Measure progress',description:`Compare success rate in equivalent situations, review video/coach notes, and update the 1–8 score.`}
+ ];}
+function makeSkillPlan(m,score){return {metric_id:m.id,category:m.category,name:m.name,score:Number(score),goal:skillScoreGoal(m,score),steps:stepsForSkill(m),measure:skillPlanMeasure(m,score)}}
 function currentScores(){const scores={};document.querySelectorAll('[data-score]').forEach(el=>{if(el.value)scores[el.dataset.score]=Number(el.value)});return scores}
 function syncSkillPlans(){const scores=currentScores(),next={};for(const [id,score] of Object.entries(scores)){const m=metrics.find(x=>x.id===id);if(!m)continue;const existing=skillPlanDrafts[id];next[id]=existing?{...existing,score:Number(score),name:m.name,category:m.category}:makeSkillPlan(m,score)}skillPlanDrafts=next;renderAllSkillPlans()}
 function renderAllSkillPlans(){const host=$('allSkillPlans');if(!host)return;const arr=Object.values(skillPlanDrafts);host.innerHTML=arr.length?`<p><b>${arr.length} individual skill plans</b> — all editable before saving.</p>`+['Character','Defense','Offense'].map(cat=>{const items=arr.filter(x=>x.category===cat);return items.length?`<h3>${cat}</h3>`+items.map(x=>`<div class="card" data-skill-plan="${escapeAttr(x.metric_id)}"><h3>${escapeHtml(x.name)} — ${x.score}/8</h3><label>Measurable goal</label><textarea data-skill-field="goal">${escapeHtml(x.goal)}</textarea><label>Development steps / drills</label>${x.steps.map((st,i)=>`<div style="padding:7px 0"><label>Step ${i+1} title</label><input data-skill-step="${i}" data-step-part="title" value="${escapeAttr(st.title)}"><label>Instructions / drills</label><textarea data-skill-step="${i}" data-step-part="description">${escapeHtml(st.description)}</textarea></div>`).join('')}<label>Success measure</label><textarea data-skill-field="measure">${escapeHtml(x.measure)}</textarea></div>`).join(''):''}).join(''):'<p class="muted">Select scores, then click Generate / Refresh All Skill Plans.</p>'}
@@ -59,26 +204,16 @@ function allCategoryPlanReport(e){
   return `<h2 class="report-category">${cat} — ${selected.length} skills</h2>`+selected.map(([id,score])=>{
    const metric=metrics.find(m=>m.id===id), plan=map[id]||(metric?makeSkillPlan(metric,score):null);
    if(!plan)return '';
-   return `<article class="report-skill"><h3>${escapeHtml(metric?.name||plan.name||'Skill')} <span style="float:right">Evaluation Score: ${escapeHtml(score)}/8</span></h3><p><strong>Measurable Goal:</strong> ${escapeHtml(plan.goal)}</p><p><strong>Development Steps & Drills</strong></p><ol>${(plan.steps||[]).map(st=>`<li><b>${escapeHtml(st.title)}</b> — ${escapeHtml(st.description)}</li>`).join('')}</ol><p><strong>Success Measure:</strong> ${escapeHtml(plan.measure)}</p></article>`;
+   return `<article class="report-skill"><h3>${escapeHtml(metric?.name||plan.name||'Skill')} <span style="float:right">${escapeHtml(score)}/8</span></h3><p><strong>Measurable Goal:</strong> ${escapeHtml(plan.goal)}</p><p><strong>Development Steps & Drills</strong></p><ol>${(plan.steps||[]).map(st=>`<li><b>${escapeHtml(st.title)}</b> — ${escapeHtml(st.description)}</li>`).join('')}</ol><p><strong>Success Measure:</strong> ${escapeHtml(plan.measure)}</p></article>`;
   }).join('');
  }).join('');
- return `<h1>PLAYER DEVELOPMENT REPORT</h1><div class="report-meta"><b>Player:</b> ${escapeHtml(player?fullName(player):'Unknown')} &nbsp; <b>Team:</b> ${escapeHtml(player?.team||'')}<p><b>Evaluation Date:</b> ${escapeHtml(e.evaluated_at)} &nbsp; <b>Coach:</b> ${escapeHtml(e.coach_email)}</p><p><b>MLB 1–8 Evaluation Scores & Individual Improvement Plans</b></p></div>${groups}<p>Reassess these skills at the next evaluation and update each development plan.</p>`;
+ return `<h1>PLAYER DEVELOPMENT — COMPLETE IMPROVEMENT PLAN</h1><div class="report-meta"><b>Player:</b> ${escapeHtml(player?fullName(player):'Unknown')} &nbsp; <b>Team:</b> ${escapeHtml(player?.team||'')}<p><b>Evaluation Date:</b> ${escapeHtml(e.evaluated_at)} &nbsp; <b>Coach:</b> ${escapeHtml(e.coach_email)}</p><p>All scored criteria • MLB-style 1–8 scale • Individual editable plans</p></div>${groups}<p>Reassess these skills at the next evaluation and update each development plan.</p>`;
 }
 function printAllCategoryPlans(id){const e=evaluations.find(x=>x.id===id);if(!e)return message('Evaluation not found');$('completePrintSheet').innerHTML=allCategoryPlanReport(e);document.body.classList.add('printing-complete');const done=()=>{document.body.classList.remove('printing-complete');window.removeEventListener('afterprint',done)};window.addEventListener('afterprint',done);window.print()}
 
 function printCompleteEvaluation(id){const e=evaluations.find(x=>x.id===id);if(!e)return message('Evaluation not found');$('completePrintSheet').innerHTML=completeReport(e);document.body.classList.add('printing-complete');const done=()=>{document.body.classList.remove('printing-complete');window.removeEventListener('afterprint',done)};window.addEventListener('afterprint',done);window.print()}
-function renderCompleteActions(){
- const host=$('completeEvalActions');if(!host)return;
- const id=$('progressPlayer').value;
- const rows=playerEvaluations(id).slice().reverse();
- host.innerHTML=rows.length?'<h3>Saved Player Development Reports</h3>'+rows.map(e=>`<p><button class="primary" data-print-development="${e.id}">Print Player Development Report — ${escapeHtml(e.evaluated_at)}</button> <button data-edit-complete="${e.id}">Edit Evaluation & All Plans</button></p>`).join(''):'';
-}
-$('completeEvalActions').onclick=event=>{
- const print=event.target.closest('[data-print-development]');
- const edit=event.target.closest('[data-edit-complete]');
- if(print)printAllCategoryPlans(print.dataset.printDevelopment);
- if(edit)startEditEvaluation(edit.dataset.editComplete);
-};
+function renderCompleteActions(){const host=$('completeEvalActions');if(!host)return;const id=$('progressPlayer').value;const rows=playerEvaluations(id).slice().reverse();host.innerHTML=rows.length?'<h3>Complete Evaluation Reports</h3>'+rows.map(e=>`<p><button data-print-all-plans="${e.id}" class="primary">Print All Improvement Plans — ${escapeHtml(e.evaluated_at)}</button> <button data-print-complete="${e.id}">Print Complete Evaluation</button> <button data-edit-complete="${e.id}">Edit Evaluation & All Plans</button></p>`).join(''):''}
+$('completeEvalActions').onclick=e=>{const p=e.target.closest('[data-print-complete]'),edit=e.target.closest('[data-edit-complete]');if(p)printCompleteEvaluation(p.dataset.printComplete);if(edit)startEditEvaluation(edit.dataset.editComplete)};
 function startEditEvaluation(id){const e=evaluations.find(x=>x.id===id);if(!e)return;$('editingEvaluationId').value=e.id;$('evalPlayer').value=e.player_id;$('evalDate').value=e.evaluated_at;$('evalSetting').value=e.setting;$('strengths').value=e.strengths||'';$('weaknesses').value=e.weaknesses||'';$('coachNotes').value=e.notes||'';document.querySelectorAll('[data-score]').forEach(s=>s.value=e.scores?.[s.dataset.score]??'');$('evaluationHeading').textContent='Edit Saved Evaluation';$('saveEvaluation').textContent='Update Evaluation';$('cancelEvaluationEdit').classList.remove('hide');skillPlanDrafts=JSON.parse(JSON.stringify(e.skill_plans||{}));syncSkillPlans();setTab('evaluation');renderPrevious();window.scrollTo({top:0,behavior:'smooth'})}
 function resetEvaluation(){ skillPlanDrafts={};renderAllSkillPlans(); $('editingEvaluationId').value='';$('evaluationHeading').textContent='Player Evaluation';$('saveEvaluation').textContent='Save Evaluation';$('cancelEvaluationEdit').classList.add('hide');['strengths','weaknesses','coachNotes'].forEach(id=>$(id).value='');document.querySelectorAll('[data-score]').forEach(s=>s.value='');renderPrevious()}
 
@@ -89,7 +224,7 @@ const PLAN_TEMPLATES={
 };
 let planSteps=[];
 function escapeAttr(v){return escapeHtml(String(v??'')).replace(/"/g,'&quot;')}
-function defaultSteps(){const metric=metrics.find(m=>m.id===$('planMetric').value);const cat=metric?.category||'Defense';return (PLAN_TEMPLATES[cat]||PLAN_TEMPLATES.Defense).map((description,i)=>({title:['Fundamentals','Controlled Repetitions','Game-Speed Application','Coach Feedback','Reevaluation'][i],description}))}
+function defaultSteps(){const metric=metrics.find(m=>m.id===$('planMetric').value);return metric?stepsForSkill(metric):[]}
 function renderPlanSteps(){$('planSteps').innerHTML=planSteps.map((s,i)=>`<div class="card" data-step-index="${i}"><div class="flex"><b>Step ${i+1}</b><button type="button" data-remove-step="${i}">Remove</button></div><label>Step name</label><input data-step-title="${i}" value="${escapeAttr(s.title)}"><label>Instructions / Drills</label><textarea data-step-description="${i}">${escapeHtml(s.description)}</textarea><div class="flex"><button type="button" data-move-step="${i}" data-direction="-1" ${i===0?'disabled':''}>Move Up</button><button type="button" data-move-step="${i}" data-direction="1" ${i===planSteps.length-1?'disabled':''}>Move Down</button></div></div>`).join('')}
 function setDefaultSteps(){planSteps=defaultSteps();renderPlanSteps()}
 function stepsToText(){return planSteps.map((s,i)=>`${i+1}. ${s.title}\n${s.description}`).join('\n\n')}
@@ -98,8 +233,8 @@ $('planSteps').addEventListener('input',e=>{const i=Number(e.target.dataset.step
 $('planSteps').addEventListener('click',e=>{const rm=e.target.closest('[data-remove-step]');if(rm){planSteps.splice(Number(rm.dataset.removeStep),1);renderPlanSteps();return}const mv=e.target.closest('[data-move-step]');if(mv){const i=Number(mv.dataset.moveStep),j=i+Number(mv.dataset.direction);if(j<0||j>=planSteps.length)return;[planSteps[i],planSteps[j]]=[planSteps[j],planSteps[i]];renderPlanSteps()}});
 $('addPlanStep').onclick=()=>{planSteps.push({title:'New Step',description:''});renderPlanSteps()};
 $('resetPlanSteps').onclick=setDefaultSteps;
-$('planMetric').addEventListener('change',()=>{if(!$('editingPlanId').value)makePlanDraft()});
-function makePlanDraft(){const id=$('planPlayer').value;if(!id)return;const history=playerEvaluations(id),last=history.at(-1);if(!last){$('planAutoNote').textContent='No saved evaluations yet. Default steps are available for a manual plan.';setDefaultSteps();return}const scored=Object.entries(last.scores||{}).map(([id,v])=>({metric:metrics.find(m=>m.id===id),value:Number(v)})).filter(x=>x.metric&&x.value>=1&&x.value<=8).sort((a,b)=>a.value-b.value);if(!scored.length)return;const focus=scored[0],prior=history.slice(0,-1).reverse().find(e=>e.scores?.[focus.metric.id]!=null),priorScore=prior?.scores?.[focus.metric.id],goalScore=Math.min(8,focus.value+1);$('planMetric').value=focus.metric.id;setDefaultSteps();$('planGoal').value=`Improve ${focus.metric.name} from ${focus.value}/8 to ${goalScore}/8 by the next review.`;$('planActions').value=stepsToText();$('planMeasure').value=`Coach reevaluation score reaches ${goalScore}/8, supported by consistent performance in practices and games.`;$('planAutoNote').textContent=`Suggested from ${last.evaluated_at} evaluation. ${focus.metric.name}: ${focus.value}/8${priorScore!=null?` (previously ${priorScore}/8, ${scoreDelta(focus.value,priorScore)})`:''}. Review and edit the draft before saving.`}
+$('planMetric').addEventListener('change',()=>makePlanDraft(true));
+function makePlanDraft(respectSelection=false){const id=$('planPlayer').value;if(!id)return;const history=playerEvaluations(id),last=history.at(-1);if(!last){$('planAutoNote').textContent='No saved evaluations yet. Select a skill to use editable skill-specific steps.';setDefaultSteps();$('planActions').value=stepsToText();return}const scored=Object.entries(last.scores||{}).map(([id,v])=>({metric:metrics.find(m=>m.id===id),value:Number(v)})).filter(x=>x.metric&&x.value>=1&&x.value<=8).sort((a,b)=>a.value-b.value);if(!scored.length)return;const selected=scored.find(x=>x.metric.id===$('planMetric').value);const focus=(respectSelection&&selected)||selected||scored[0];$('planMetric').value=focus.metric.id;const draft=makeSkillPlan(focus.metric,focus.value);planSteps=draft.steps;renderPlanSteps();$('planGoal').value=draft.goal;$('planActions').value=stepsToText();$('planMeasure').value=draft.measure;const prior=history.slice(0,-1).reverse().find(e=>e.scores?.[focus.metric.id]!=null);$('planAutoNote').textContent=`Skill-specific recommendation from ${last.evaluated_at}: ${focus.metric.name} ${focus.value}/8${prior?` (previously ${prior.scores[focus.metric.id]}/8)`:''}. Review and edit before saving.`}
 function startEditPlan(id){const p=plans.find(x=>x.id===id);if(!p)return;$('editingPlanId').value=id;$('planPlayer').value=p.player_id;$('planMetric').value=p.metric_id||'';$('targetDate').value=p.target_date||'';$('planGoal').value=p.goal||'';$('planActions').value=p.actions||'';$('planMeasure').value=p.measure||'';planSteps=parseSavedSteps(p.actions);renderPlanSteps();$('planHeading').textContent='Edit Saved Improvement Plan';$('savePlan').textContent='Update Plan';$('cancelPlanEdit').classList.remove('hide');$('planAutoNote').textContent='Editing an existing plan. Save changes to update it.';setTab('plans');window.scrollTo({top:0,behavior:'smooth'})}
 function resetPlan(){planSteps=[];renderPlanSteps();$('editingPlanId').value='';$('planHeading').textContent='Improvement Plan';$('savePlan').textContent='Save Plan';$('cancelPlanEdit').classList.add('hide');['planGoal','planActions','planMeasure','targetDate'].forEach(id=>$(id).value='');$('planAutoNote').textContent='Select a player to generate a suggested improvement plan from saved evaluations.'}
 function renderPlans(){$('planList').innerHTML=plans.length?plans.map(p=>{const player=players.find(x=>x.id===p.player_id),metric=metrics.find(x=>x.id===p.metric_id);return `<div class="card"><div class="flex"><h3 style="flex:1">${escapeHtml(player?fullName(player):'Unknown Player')} — ${escapeHtml(metric?.name||'Focus')}</h3><span class="pill">${escapeHtml(p.status)}</span></div><p><b>Goal:</b> ${escapeHtml(p.goal)}</p><p><b>Practice Actions:</b> ${escapeHtml(p.actions)}</p><p><b>Success Measure:</b> ${escapeHtml(p.measure)}</p><p><b>Review Date:</b> ${escapeHtml(p.target_date)}</p><div class="noprint"><button data-print-plan="${p.id}">Print / Save PDF</button> <button data-edit-plan="${p.id}">Edit Plan</button> <button data-complete="${p.id}">${p.status==='Complete'?'Reopen Plan':'Mark Complete'}</button></div></div>`}).join(''):'<p class="muted">No improvement plans yet.</p>'}
@@ -120,7 +255,7 @@ $('cancelEvaluationEdit').onclick=resetEvaluation;
 $('saveEvaluation').onclick=async()=>{try{const id=$('evalPlayer').value;if(!id)throw Error('Select a player.');const scores={};document.querySelectorAll('[data-score]').forEach(s=>{if(s.value)scores[s.dataset.score]=Number(s.value)});if(!Object.keys(scores).length)throw Error('Score at least one criterion.');syncSkillPlans();const payload={org,player_id:id,skill_plans:skillPlanDrafts,evaluated_at:$('evalDate').value,setting:$('evalSetting').value,coach_email:session.user.email,scores,strengths:$('strengths').value,weaknesses:$('weaknesses').value,notes:$('coachNotes').value};const editId=$('editingEvaluationId').value;if(editId){check(await db.from('pd_evaluations').update(payload).eq('id',editId).eq('org',org))}else{check(await db.from('pd_evaluations').insert(payload))}resetEvaluation();await loadAll();$('progressPlayer').value=id;renderProgress();renderSavedEvaluations();$('planPlayer').value=id;setTab('progress');renderCompleteActions();message(editId?'Complete evaluation and all skill plans updated.':'Complete evaluation and all individual skill plans saved.')}catch(e){error(e)}};
 $('progressPlayer').onchange=()=>{renderProgress();renderSavedEvaluations();renderCompleteActions()};
 $('savedEvaluationList').onclick=e=>{const btn=e.target.closest('[data-edit-eval]');if(btn)startEditEvaluation(btn.dataset.editEval)};
-$('printProgress').onclick=()=>{const e=playerEvaluations($('progressPlayer').value).at(-1);if(e)printAllCategoryPlans(e.id);else message('Select a player with a saved evaluation.')};
+$('printProgress').onclick=()=>{const e=playerEvaluations($('progressPlayer').value).at(-1);if(e)printCompleteEvaluation(e.id);else message('Select a player with a saved evaluation.')};
 $('planPlayer').onchange=()=>{if(!$('editingPlanId').value)makePlanDraft()};
 $('generatePlan').onclick=makePlanDraft;
 $('cancelPlanEdit').onclick=resetPlan;
@@ -144,4 +279,4 @@ $('evalDate').value=new Date().toLocaleDateString('en-CA');
 const saved=localStorage.getItem('playerdev_config');if(saved){try{const {url,key}=JSON.parse(saved);initDb(url,key);restore()}catch(e){error(e);visible('configPanel')}}else visible('configPanel')
 
 
-
+$("completeEvalActions").addEventListener("click",event=>{const btn=event.target.closest("[data-print-all-plans]");if(btn)printAllCategoryPlans(btn.dataset.printAllPlans)});
