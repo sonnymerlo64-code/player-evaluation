@@ -59,16 +59,26 @@ function allCategoryPlanReport(e){
   return `<h2 class="report-category">${cat} — ${selected.length} skills</h2>`+selected.map(([id,score])=>{
    const metric=metrics.find(m=>m.id===id), plan=map[id]||(metric?makeSkillPlan(metric,score):null);
    if(!plan)return '';
-   return `<article class="report-skill"><h3>${escapeHtml(metric?.name||plan.name||'Skill')} <span style="float:right">${escapeHtml(score)}/8</span></h3><p><strong>Measurable Goal:</strong> ${escapeHtml(plan.goal)}</p><p><strong>Development Steps & Drills</strong></p><ol>${(plan.steps||[]).map(st=>`<li><b>${escapeHtml(st.title)}</b> — ${escapeHtml(st.description)}</li>`).join('')}</ol><p><strong>Success Measure:</strong> ${escapeHtml(plan.measure)}</p></article>`;
+   return `<article class="report-skill"><h3>${escapeHtml(metric?.name||plan.name||'Skill')} <span style="float:right">Evaluation Score: ${escapeHtml(score)}/8</span></h3><p><strong>Measurable Goal:</strong> ${escapeHtml(plan.goal)}</p><p><strong>Development Steps & Drills</strong></p><ol>${(plan.steps||[]).map(st=>`<li><b>${escapeHtml(st.title)}</b> — ${escapeHtml(st.description)}</li>`).join('')}</ol><p><strong>Success Measure:</strong> ${escapeHtml(plan.measure)}</p></article>`;
   }).join('');
  }).join('');
- return `<h1>PLAYER DEVELOPMENT — COMPLETE IMPROVEMENT PLAN</h1><div class="report-meta"><b>Player:</b> ${escapeHtml(player?fullName(player):'Unknown')} &nbsp; <b>Team:</b> ${escapeHtml(player?.team||'')}<p><b>Evaluation Date:</b> ${escapeHtml(e.evaluated_at)} &nbsp; <b>Coach:</b> ${escapeHtml(e.coach_email)}</p><p>All scored criteria • MLB-style 1–8 scale • Individual editable plans</p></div>${groups}<p>Reassess these skills at the next evaluation and update each development plan.</p>`;
+ return `<h1>PLAYER DEVELOPMENT REPORT</h1><div class="report-meta"><b>Player:</b> ${escapeHtml(player?fullName(player):'Unknown')} &nbsp; <b>Team:</b> ${escapeHtml(player?.team||'')}<p><b>Evaluation Date:</b> ${escapeHtml(e.evaluated_at)} &nbsp; <b>Coach:</b> ${escapeHtml(e.coach_email)}</p><p><b>MLB 1–8 Evaluation Scores & Individual Improvement Plans</b></p></div>${groups}<p>Reassess these skills at the next evaluation and update each development plan.</p>`;
 }
 function printAllCategoryPlans(id){const e=evaluations.find(x=>x.id===id);if(!e)return message('Evaluation not found');$('completePrintSheet').innerHTML=allCategoryPlanReport(e);document.body.classList.add('printing-complete');const done=()=>{document.body.classList.remove('printing-complete');window.removeEventListener('afterprint',done)};window.addEventListener('afterprint',done);window.print()}
 
 function printCompleteEvaluation(id){const e=evaluations.find(x=>x.id===id);if(!e)return message('Evaluation not found');$('completePrintSheet').innerHTML=completeReport(e);document.body.classList.add('printing-complete');const done=()=>{document.body.classList.remove('printing-complete');window.removeEventListener('afterprint',done)};window.addEventListener('afterprint',done);window.print()}
-function renderCompleteActions(){const host=$('completeEvalActions');if(!host)return;const id=$('progressPlayer').value;const rows=playerEvaluations(id).slice().reverse();host.innerHTML=rows.length?'<h3>Complete Evaluation Reports</h3>'+rows.map(e=>`<p><button data-print-all-plans="${e.id}" class="primary">Print All Improvement Plans — ${escapeHtml(e.evaluated_at)}</button> <button data-print-complete="${e.id}">Print Complete Evaluation</button> <button data-edit-complete="${e.id}">Edit Evaluation & All Plans</button></p>`).join(''):''}
-$('completeEvalActions').onclick=e=>{const p=e.target.closest('[data-print-complete]'),edit=e.target.closest('[data-edit-complete]');if(p)printCompleteEvaluation(p.dataset.printComplete);if(edit)startEditEvaluation(edit.dataset.editComplete)};
+function renderCompleteActions(){
+ const host=$('completeEvalActions');if(!host)return;
+ const id=$('progressPlayer').value;
+ const rows=playerEvaluations(id).slice().reverse();
+ host.innerHTML=rows.length?'<h3>Saved Player Development Reports</h3>'+rows.map(e=>`<p><button class="primary" data-print-development="${e.id}">Print Player Development Report — ${escapeHtml(e.evaluated_at)}</button> <button data-edit-complete="${e.id}">Edit Evaluation & All Plans</button></p>`).join(''):'';
+}
+$('completeEvalActions').onclick=event=>{
+ const print=event.target.closest('[data-print-development]');
+ const edit=event.target.closest('[data-edit-complete]');
+ if(print)printAllCategoryPlans(print.dataset.printDevelopment);
+ if(edit)startEditEvaluation(edit.dataset.editComplete);
+};
 function startEditEvaluation(id){const e=evaluations.find(x=>x.id===id);if(!e)return;$('editingEvaluationId').value=e.id;$('evalPlayer').value=e.player_id;$('evalDate').value=e.evaluated_at;$('evalSetting').value=e.setting;$('strengths').value=e.strengths||'';$('weaknesses').value=e.weaknesses||'';$('coachNotes').value=e.notes||'';document.querySelectorAll('[data-score]').forEach(s=>s.value=e.scores?.[s.dataset.score]??'');$('evaluationHeading').textContent='Edit Saved Evaluation';$('saveEvaluation').textContent='Update Evaluation';$('cancelEvaluationEdit').classList.remove('hide');skillPlanDrafts=JSON.parse(JSON.stringify(e.skill_plans||{}));syncSkillPlans();setTab('evaluation');renderPrevious();window.scrollTo({top:0,behavior:'smooth'})}
 function resetEvaluation(){ skillPlanDrafts={};renderAllSkillPlans(); $('editingEvaluationId').value='';$('evaluationHeading').textContent='Player Evaluation';$('saveEvaluation').textContent='Save Evaluation';$('cancelEvaluationEdit').classList.add('hide');['strengths','weaknesses','coachNotes'].forEach(id=>$(id).value='');document.querySelectorAll('[data-score]').forEach(s=>s.value='');renderPrevious()}
 
@@ -110,7 +120,7 @@ $('cancelEvaluationEdit').onclick=resetEvaluation;
 $('saveEvaluation').onclick=async()=>{try{const id=$('evalPlayer').value;if(!id)throw Error('Select a player.');const scores={};document.querySelectorAll('[data-score]').forEach(s=>{if(s.value)scores[s.dataset.score]=Number(s.value)});if(!Object.keys(scores).length)throw Error('Score at least one criterion.');syncSkillPlans();const payload={org,player_id:id,skill_plans:skillPlanDrafts,evaluated_at:$('evalDate').value,setting:$('evalSetting').value,coach_email:session.user.email,scores,strengths:$('strengths').value,weaknesses:$('weaknesses').value,notes:$('coachNotes').value};const editId=$('editingEvaluationId').value;if(editId){check(await db.from('pd_evaluations').update(payload).eq('id',editId).eq('org',org))}else{check(await db.from('pd_evaluations').insert(payload))}resetEvaluation();await loadAll();$('progressPlayer').value=id;renderProgress();renderSavedEvaluations();$('planPlayer').value=id;setTab('progress');renderCompleteActions();message(editId?'Complete evaluation and all skill plans updated.':'Complete evaluation and all individual skill plans saved.')}catch(e){error(e)}};
 $('progressPlayer').onchange=()=>{renderProgress();renderSavedEvaluations();renderCompleteActions()};
 $('savedEvaluationList').onclick=e=>{const btn=e.target.closest('[data-edit-eval]');if(btn)startEditEvaluation(btn.dataset.editEval)};
-$('printProgress').onclick=()=>{const e=playerEvaluations($('progressPlayer').value).at(-1);if(e)printCompleteEvaluation(e.id);else message('Select a player with a saved evaluation.')};
+$('printProgress').onclick=()=>{const e=playerEvaluations($('progressPlayer').value).at(-1);if(e)printAllCategoryPlans(e.id);else message('Select a player with a saved evaluation.')};
 $('planPlayer').onchange=()=>{if(!$('editingPlanId').value)makePlanDraft()};
 $('generatePlan').onclick=makePlanDraft;
 $('cancelPlanEdit').onclick=resetPlan;
@@ -134,4 +144,4 @@ $('evalDate').value=new Date().toLocaleDateString('en-CA');
 const saved=localStorage.getItem('playerdev_config');if(saved){try{const {url,key}=JSON.parse(saved);initDb(url,key);restore()}catch(e){error(e);visible('configPanel')}}else visible('configPanel')
 
 
-$("completeEvalActions").addEventListener("click",event=>{const btn=event.target.closest("[data-print-all-plans]");if(btn)printAllCategoryPlans(btn.dataset.printAllPlans)});
+

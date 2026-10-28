@@ -1,0 +1,10 @@
+V10 — One Player Development Report
+
+1. Back up the working GitHub files.
+2. Upload app.js and index.html to the existing repository root, replacing those two files only.
+3. Do NOT run schema.sql or upgrade_all_skill_plans.sql again.
+4. Wait for Vercel deployment. Verify dashboard loads.
+5. Saved Evaluations & Trends > select player > Print Player Development Report.
+6. In Safari choose All Pages and PDF > Save as PDF.
+
+This update changes report controls and print layout only. It uses saved evaluation scores and skill_plans; older evaluations without saved plans display generated defaults, not stored edits.
