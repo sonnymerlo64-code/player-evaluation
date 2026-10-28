@@ -38,5 +38,8 @@ Each focus skill generates five editable steps based on its Offense, Defense, or
 ## V6: Printable improvement plans
 Each saved plan includes Print / Save PDF. Print output is a clean US Letter portrait sheet with player/team, focus skill, goal, numbered development steps, success measure, review date, and signature lines. Use the browser print dialog to print or save as PDF.
 
-## Complete evaluation report update
-Saved Evaluations & Trends now includes **Print / Download Complete Evaluation**. Choose a player to print one multipage US Letter portrait report with all rated Character, Defense and Offense criteria, latest/previous ratings, coach notes, trends, and all saved development plans. Uses existing Supabase tables; no SQL migration needed. Use the browser Print dialog → Save as PDF. Unscored criteria are not fabricated.
+## Complete evaluation and individual plans — V7
+Run `upgrade_all_skill_plans.sql` in your EXISTING Supabase SQL Editor before deploying.
+In New Evaluation, score criteria, review/edit the automatically generated plans for EVERY scored item, then Save Evaluation. The plans are stored together on the evaluation row.
+In Saved Evaluations & Trends, select a player and choose Print Complete Report for the relevant evaluation; browser print can save one multipage PDF. Editing an evaluation reloads all its skill plans. Older saved evaluations will generate defaults when opened for editing, but their new plans are not persisted until saved.
+Do not run schema.sql again. This update does not change the existing separate legacy Improvement Plans tab.
