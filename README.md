@@ -43,7 +43,3 @@ Run `upgrade_all_skill_plans.sql` in your EXISTING Supabase SQL Editor before de
 In New Evaluation, score criteria, review/edit the automatically generated plans for EVERY scored item, then Save Evaluation. The plans are stored together on the evaluation row.
 In Saved Evaluations & Trends, select a player and choose Print Complete Report for the relevant evaluation; browser print can save one multipage PDF. Editing an evaluation reloads all its skill plans. Older saved evaluations will generate defaults when opened for editing, but their new plans are not persisted until saved.
 Do not run schema.sql again. This update does not change the existing separate legacy Improvement Plans tab.
-
-
-## V9 — One Player Development Report
-From Saved Evaluations & Trends, select a player and click **Print Player Development Report** next to an evaluation. The single multipage report displays each scored criterion with its MLB 1–8 score immediately above its editable improvement goal, development steps/drills, and success measure. All scored Character, Defense, and Offense criteria appear in the same document, followed by coach assessment. The redundant separate report buttons have been removed. No new database migration is required beyond the existing V7 `skill_plans` column.
