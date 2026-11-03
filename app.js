@@ -16,26 +16,75 @@ function fullName(p){return `${p.first_name} ${p.last_name}`}
 function options(id){const previous=$(id).value;$(id).innerHTML='<option value="">Choose player...</option>'+players.map(p=>`<option value="${p.id}">${escapeHtml(fullName(p))} — ${escapeHtml(p.team)}</option>`).join('');if(players.some(p=>p.id===previous))$(id).value=previous}
 function renderAll(){$('playersCount').textContent=players.length;$('evaluationsCount').textContent=evaluations.length;$('plansCount').textContent=plans.length;['evalPlayer','progressPlayer','planPlayer'].forEach(options);$('rosterRows').innerHTML=players.map(p=>`<tr><td>${escapeHtml(fullName(p))}</td><td>${escapeHtml(p.team)}</td><td>${escapeHtml(p.jersey)}</td><td>${evaluations.filter(e=>e.player_id===p.id).length}</td><td class="noprint"><button data-edit-player="${p.id}">Edit</button></td></tr>`).join('');renderMetricInputs();renderResponseLibrary();renderProgress();renderSavedEvaluations();renderPlans();renderLibrary();const previous=$('planMetric').value;$('planMetric').innerHTML=metrics.filter(m=>m.active).map(m=>`<option value="${m.id}">${escapeHtml(m.category+' — '+m.name)}</option>`).join('');$('planMetric').value=previous||$('planMetric').value}
 
-const STANDARD_RESPONSES={
- Offense:{
- strengths:['Maintains a balanced setup and athletic posture.','Demonstrates consistent barrel control and quality contact.','Recognizes pitches and shows a disciplined approach.','Adjusts effectively to different pitch locations.'],
- improvements:['Needs more consistent lower-half sequencing and balance.','Contact quality varies with timing and pitch location.','Chases pitches outside the strike zone.','Needs to improve situational approach and decision-making.'],
- drills:['Tee work: 3 sets of 10 swings emphasizing balance and contact.','Front toss: 3 sets of 10 swings emphasizing barrel control.','Pitch recognition and take/swing decision drills.','Situational hitting with controlled machine or live pitching.']
- },
- Defense:{
- strengths:['Demonstrates sound ready position and first-step reactions.','Fields routine balls with consistent glove presentation.','Shows accurate throws and good target alignment.','Anticipates game situations and communicates effectively.'],
- improvements:['Needs improvement in footwork and body positioning.','Throwing accuracy is inconsistent under game-speed pressure.','Needs to improve anticipation and pre-pitch preparation.','Needs more consistent glove-to-throw transitions.'],
- drills:['Short-hop progression: 3 sets of 12 repetitions.','Footwork and throwing accuracy: 20 targeted repetitions.','Situational defensive reads and game-speed repetitions.','Pre-pitch positioning and first-step reaction drills.']
- },
- Character:{
- strengths:['Demonstrates consistent effort and preparation.','Responds positively to instruction and feedback.','Encourages teammates and communicates constructively.','Shows resilience after mistakes.'],
- improvements:['Needs more consistent focus during instruction.','Needs to respond more positively to adversity.','Should communicate more consistently with teammates.','Needs improved preparation and attention to detail.'],
- drills:['Set one observable practice behavior goal each week.','Use a short pre-practice focus and post-practice reflection.','Assign positive communication responsibilities in team drills.','Coach checks in weekly on response to adversity and effort.']
- }
+
+// V9: category filtering uses each saved metric's actual category.
+// Keep database category labels intact to preserve historical scores.
+const CATEGORY_ORDER=['Offense','Defense','Character'];
+const SKILL_RESPONSES={
+ 'attitude':[['Accepts feedback respectfully.','Responds constructively after mistakes.'],['Needs to improve response to coaching.','Needs more consistent positive body language.'],['Use a weekly feedback-and-reflection check-in.','Practice reset routines after mistakes.']],
+ 'hitting':[['Maintains balance through contact.','Uses a repeatable swing path.'],['Needs more consistent timing and barrel control.','Needs better lower-half sequencing.'],['Tee progression emphasizing balance and contact.','Front toss with timing checkpoints.']],
+ 'contact':[['Squares up hittable pitches consistently.','Adjusts barrel to pitch location.'],['Needs more consistent solid contact.','Struggles adjusting to pitch location.'],['Inside-outside tee progression.','Front toss with location targets.']],
+ 'plate':[['Recognizes pitches in the strike zone.','Shows a disciplined approach.'],['Chases pitches outside the zone.','Needs improved pitch recognition.'],['Take-or-swing recognition rounds.','Situational count approach drill.']],
+ 'situational':[['Adjusts approach to game situation.','Executes productive at-bats.'],['Needs better awareness of outs and runners.','Needs to improve situational decisions.'],['Situational hitting rounds.','Two-strike approach drills.']],
+ 'bunt':[['Controls bat angle and placement.','Executes bunts with balance.'],['Needs more consistent placement.','Needs improved footwork on bunts.'],['Target bunting repetitions.','Sacrifice bunt progression.']],
+ 'baserunn':[['Reads the ball and reacts quickly.','Takes efficient turns.'],['Needs better reads and leads.','Needs more efficient turns and decisions.'],['Lead-and-read progression.','First-to-third decision drills.']],
+ 'field':[['Uses proper glove presentation.','Moves feet through the ball.'],['Needs improved fielding posture.','Needs more consistent glove-to-throw transition.'],['Short-hop progression.','Footwork through-the-ball drills.']],
+ 'throw':[['Delivers accurate throws with good direction.','Uses repeatable throwing mechanics.'],['Needs more consistent target accuracy.','Needs improved foot alignment.'],['Target throwing ladder.','Footwork-to-release repetitions.']],
+ 'arm':[['Shows good carry and arm action.','Maintains mechanics on longer throws.'],['Needs more consistent throwing mechanics.','Loses accuracy on longer throws.'],['Progressive long toss with mechanics focus.','Crow-hop and target throwing.']],
+ 'range':[['Shows a quick first step.','Takes efficient angles to the ball.'],['Needs better reaction and first-step efficiency.','Needs to improve routes to the ball.'],['First-step reaction drills.','Angle and range progression.']],
+ 'iq':[['Anticipates game situations.','Positions appropriately before the pitch.'],['Needs stronger situational awareness.','Needs to anticipate defensive responsibilities.'],['Situational walk-throughs.','Pre-pitch decision drills.']],
+ 'communicat':[['Communicates clearly with teammates.','Directs teammates in game situations.'],['Needs to communicate earlier and louder.','Needs more consistent calls.'],['Priority-call drill.','Team defensive communication rounds.']],
+ 'position':[['Executes primary-position responsibilities.','Shows reliable position-specific technique.'],['Needs improved position-specific footwork.','Needs better decision-making at primary position.'],['Position-specific repetition circuit.','Game-speed position drills.']],
+ 'effort':[['Maintains high effort throughout practice.','Prepares consistently.'],['Needs more consistent hustle.','Needs improved preparation habits.'],['Weekly effort checklist.','Practice preparation routine.']],
+ 'body language':[['Shows positive body language.','Stays engaged after mistakes.'],['Needs to improve response after errors.','Needs more consistent engagement.'],['Reset-and-refocus routine.','Post-practice reflection.']],
+ 'leadership':[['Encourages teammates.','Leads through preparation and example.'],['Needs more consistent positive leadership.','Needs to take accountability.'],['Assign a communication leadership role.','Weekly leadership goal.']],
+ 'focus':[['Remains attentive during instruction.','Maintains practice concentration.'],['Needs to limit distractions.','Needs improved attention to detail.'],['Pre-practice focus goal.','Short reflection after each station.']]
 };
-function optionsForMetric(metric,type){const custom=responseOptions.filter(x=>x.metric_id===metric.id&&x.kind===type&&x.active!==false).map(x=>({id:x.id,text:x.response}));return custom.length?custom:STANDARD_RESPONSES[metric.category][type].map((text,i)=>({id:'default-'+i,text}))}
-function getSelections(){const out={};document.querySelectorAll('[data-observation]').forEach(el=>{const key=el.dataset.observation,kind=el.dataset.kind;out[key]??={};out[key][kind]=[...el.selectedOptions].map(o=>o.value).filter(Boolean)});document.querySelectorAll('[data-custom-note]').forEach(el=>{out[el.dataset.customNote]??={};out[el.dataset.customNote].note=el.value});return out}
-function renderMetricInputs(){const level=Number($('evalLevel').value||2);$('levelInfo').textContent=['','Foundation: broad essentials','Development: skill fundamentals','Advanced: detailed skills and observations','Comprehensive: all criteria'][level];const selected=metrics.filter(m=>m.active);$('metricInputs').innerHTML=['Offense','Defense','Character'].map(category=>`<h3>${category}</h3>`+selected.filter((m,i)=>level===1?i<2:level===2?i<4:true).map(m=>`<div class="card" data-metric-card="${m.id}"><div class="metric"><div><b>${escapeHtml(m.name)}</b><div class="muted"><small>${escapeHtml(m.description)}</small></div></div><select data-score="${m.id}" aria-label="Score ${escapeHtml(m.name)}"><option value="">Not Rated</option>${[1,2,3,4,5,6,7,8].map(n=>`<option value="${n}">${n} / 8</option>`).join('')}</select></div>${['strengths','improvements','drills'].map((kind)=>`<label>${{strengths:'Strengths',improvements:'Areas for Improvement',drills:'Recommended Drills'}[kind]} (multiple selections)</label><select multiple size="${level>=3?4:3}" data-observation="${m.id}" data-kind="${kind}" style="min-height:78px">${optionsForMetric(m,kind).map(o=>`<option value="${escapeHtml(o.text)}">${escapeHtml(o.text)}</option>`).join('')}</select>`).join('')}<label>Coach-specific notes</label><textarea data-custom-note="${m.id}" placeholder="Optional observation for this player"></textarea></div>`).join('')).join('')}
+function skillKey(metric){
+ const name=(metric.name||'').toLowerCase();
+ const match=Object.keys(SKILL_RESPONSES).find(k=>name.includes(k));
+ return match||({'Offense':'hitting','Defense':'field','Character':'attitude'}[metric.category]||'attitude');
+}
+function optionsForMetric(metric,type){
+ const custom=responseOptions.filter(x=>x.metric_id===metric.id&&x.kind===type&&x.active!==false).map(x=>({id:x.id,text:x.response}));
+ const index={strengths:0,improvements:1,drills:2}[type];
+ const fallback=(SKILL_RESPONSES[skillKey(metric)]||SKILL_RESPONSES.attitude)[index].map((text,i)=>({id:'default-'+i,text}));
+ return [...fallback,...custom.filter(c=>!fallback.some(f=>f.text===c.text))];
+}
+function getSelections(){
+ const out={};
+ document.querySelectorAll('[data-observation]').forEach(el=>{
+  const key=el.dataset.observation,kind=el.dataset.kind;
+  out[key]??={};
+  out[key][kind]=[...el.querySelectorAll('input[type="checkbox"]:checked')].map(i=>i.value);
+ });
+ document.querySelectorAll('[data-custom-note]').forEach(el=>{
+  out[el.dataset.customNote]??={};out[el.dataset.customNote].note=el.value;
+ });
+ return out;
+}
+function renderMetricInputs(){
+ const level=Number($('evalLevel').value||2);
+ $('levelInfo').textContent=['','Foundation: broad essentials','Development: skill fundamentals','Advanced: detailed skills and observations','Comprehensive: all criteria'][level];
+ const selected=metrics.filter(m=>m.active);
+ $('metricInputs').innerHTML=CATEGORY_ORDER.map(category=>{
+  const subset=selected.filter(m=>m.category===category).slice(0,level===1?2:level===2?4:Infinity);
+  if(!subset.length)return '';
+  return `<h3>${category}</h3>`+subset.map(m=>`<div class="card" data-metric-card="${m.id}">
+   <div class="metric"><div><b>${escapeHtml(m.name)}</b><div class="muted"><small>${escapeHtml(m.description)}</small></div></div>
+   <select data-score="${m.id}" aria-label="Score ${escapeHtml(m.name)}"><option value="">Not Rated</option>${[1,2,3,4,5,6,7,8].map(n=>`<option value="${n}">${n} / 8</option>`).join('')}</select></div>
+   ${['strengths','improvements','drills'].map(kind=>{
+    const label={strengths:'Strengths',improvements:'Areas for Improvement',drills:'Recommended Drills'}[kind];
+    return `<details class="response-picker" data-observation="${m.id}" data-kind="${kind}"><summary>${label} — <span class="response-count">Choose responses</span></summary><div class="response-picker-body">${optionsForMetric(m,kind).map(o=>`<label class="response-choice"><input type="checkbox" value="${escapeHtml(o.text)}"> <span>${escapeHtml(o.text)}</span></label>`).join('')}</div></details>`;
+   }).join('')}
+   <label>Coach-specific notes</label><textarea data-custom-note="${m.id}" placeholder="Optional observation for this player"></textarea>
+  </div>`).join('');
+ }).join('');
+}
+function updateResponseCount(picker){
+ const count=picker.querySelectorAll('input:checked').length;
+ picker.querySelector('.response-count').textContent=count?`${count} selected`:'Choose responses';
+}
 function renderResponseLibrary(){const el=$('responseMetric');if(!el)return;const old=el.value;el.innerHTML=metrics.map(m=>`<option value="${m.id}">${escapeHtml(m.category+' — '+m.name)}</option>`).join('');if(metrics.some(m=>m.id===old))el.value=old;const m=metrics.find(x=>x.id===el.value);if(!m)return;const kind=$('responseType').value;$('responseRows').innerHTML=optionsForMetric(m,kind).map(o=>`<div class="metric"><span>${escapeHtml(o.text)}</span>${isAdmin&&o.id&&!o.id.startsWith('default-')?`<button data-remove-response="${o.id}">Remove</button>`:''}</div>`).join('');$('addResponse').disabled=!isAdmin;$('responseText').disabled=!isAdmin;$('adminInfo').textContent=isAdmin?'Administrator: changes update the shared response library.':'Standard responses are view-only. Ask your administrator to manage shared defaults.'}
 async function loadResponseOptions(){const r=await db.from('pd_response_options').select('*').eq('org',org);if(r.error)throw Error('V7 database migration required. Run migration-v7.sql in Supabase first: '+r.error.message);responseOptions=r.data||[];const a=await db.from('pd_eval_admins').select('email').eq('org',org).eq('email',session.user.email.toLowerCase()).maybeSingle();if(a.error)throw a.error;isAdmin=!!a.data}
 function renderLibrary(){$('libraryRows').innerHTML=['Offense','Defense','Character'].map(c=>`<h3>${c}</h3>`+metrics.filter(m=>m.category===c).map(m=>`<div class="metric"><div><b>${escapeHtml(m.name)}</b><div class="muted">${escapeHtml(m.description)}</div></div><label style="white-space:nowrap;color:white"><input type="checkbox" data-toggle="${m.id}" ${m.active?'checked':''} style="width:auto"> Include</label></div>`).join('')).join('')}
@@ -49,7 +98,7 @@ function scoreDelta(n,old){if(old==null)return 'New';const d=Number(n)-Number(ol
 function renderPrevious(){const id=$('evalPlayer').value, target=$('previousEvaluation');if(!id){target.innerHTML='<p class="muted">Choose a player to see their previous evaluation and score trends.</p>';return}const history=playerEvaluations(id).filter(e=>e.id!==$('editingEvaluationId').value),last=history.at(-1);if(!last){target.innerHTML='<p class="muted">First evaluation for this player — no previous scores.</p>';return}target.innerHTML='<h3>Previous Evaluation: '+escapeHtml(last.evaluated_at)+'</h3><p class="muted">Changes compare your current scores with the latest saved evaluation.</p><div id="previousScoreRows"></div>';renderScoreComparison()}
 function renderScoreComparison(){const id=$('evalPlayer').value,last=playerEvaluations(id).filter(e=>e.id!==$('editingEvaluationId').value).at(-1),target=$('previousScoreRows');if(!target||!last)return;target.innerHTML=[...document.querySelectorAll('[data-score]')].map(s=>{const m=metrics.find(m=>m.id===s.dataset.score),prev=last.scores?.[s.dataset.score],now=s.value;return `<div class="metric"><span>${escapeHtml(m?.name||'Skill')}</span><span>Previous: ${prev??'—'} · Current: ${now||'—'} ${now?scoreDelta(now,prev):''}</span></div>`}).join('')}
 function renderSavedEvaluations(){const id=$('progressPlayer').value,target=$('savedEvaluationList');if(!id){target.innerHTML='<p class="muted">Select a player to access saved evaluations.</p>';return}const history=playerEvaluations(id).slice().reverse();target.innerHTML=history.length?history.map(e=>`<div class="metric"><div><b>${escapeHtml(e.evaluated_at)} — ${escapeHtml(e.setting)}</b><div class="muted"><small>Offense ${average(e,'Offense')} · Defense ${average(e,'Defense')} · Character ${average(e,'Character')} · ${escapeHtml(e.coach_email)}</small></div></div><button class="noprint" data-edit-eval="${e.id}">Open / Edit</button></div>`).join(''):'<p>No evaluations saved for this player.</p>'}
-function startEditEvaluation(id){const e=evaluations.find(x=>x.id===id);if(!e)return;$('editingEvaluationId').value=e.id;$('evalPlayer').value=e.player_id;$('evalDate').value=e.evaluated_at;$('evalSetting').value=e.setting;$('evalLevel').value=e.level||2;renderMetricInputs();Object.entries(e.observations||{}).forEach(([metricId,entry])=>{for(const kind of ['strengths','improvements','drills']){const sel=document.querySelector(`[data-observation="${metricId}"][data-kind="${kind}"]`);if(sel)[...sel.options].forEach(o=>o.selected=(entry[kind]||[]).includes(o.value))}const note=document.querySelector(`[data-custom-note="${metricId}"]`);if(note)note.value=entry.note||''});$('strengths').value=e.strengths||'';$('weaknesses').value=e.weaknesses||'';$('coachNotes').value=e.notes||'';document.querySelectorAll('[data-score]').forEach(s=>s.value=e.scores?.[s.dataset.score]??'');$('evaluationHeading').textContent='Edit Saved Evaluation';$('saveEvaluation').textContent='Update Evaluation';$('cancelEvaluationEdit').classList.remove('hide');setTab('evaluation');renderPrevious();window.scrollTo({top:0,behavior:'smooth'})}
+function startEditEvaluation(id){const e=evaluations.find(x=>x.id===id);if(!e)return;$('editingEvaluationId').value=e.id;$('evalPlayer').value=e.player_id;$('evalDate').value=e.evaluated_at;$('evalSetting').value=e.setting;$('evalLevel').value=e.level||2;renderMetricInputs();Object.entries(e.observations||{}).forEach(([metricId,entry])=>{for(const kind of ['strengths','improvements','drills']){const picker=document.querySelector(`[data-observation="${metricId}"][data-kind="${kind}"]`);if(picker){picker.querySelectorAll('input[type="checkbox"]').forEach(o=>o.checked=(entry[kind]||[]).includes(o.value));updateResponseCount(picker)}}const note=document.querySelector(`[data-custom-note="${metricId}"]`);if(note)note.value=entry.note||''});$('strengths').value=e.strengths||'';$('weaknesses').value=e.weaknesses||'';$('coachNotes').value=e.notes||'';document.querySelectorAll('[data-score]').forEach(s=>s.value=e.scores?.[s.dataset.score]??'');$('evaluationHeading').textContent='Edit Saved Evaluation';$('saveEvaluation').textContent='Update Evaluation';$('cancelEvaluationEdit').classList.remove('hide');setTab('evaluation');renderPrevious();window.scrollTo({top:0,behavior:'smooth'})}
 function resetEvaluation(){ $('editingEvaluationId').value='';$('evaluationHeading').textContent='Player Evaluation';$('saveEvaluation').textContent='Save Evaluation';$('cancelEvaluationEdit').classList.add('hide');['strengths','weaknesses','coachNotes'].forEach(id=>$(id).value='');document.querySelectorAll('[data-score]').forEach(s=>s.value='');renderPrevious()}
 
 const PLAN_TEMPLATES={
@@ -130,3 +179,8 @@ $('responseMetric').onchange=renderResponseLibrary;
 $('responseType').onchange=renderResponseLibrary;
 $('addResponse').onclick=async()=>{try{if(!isAdmin)throw Error('Administrator access required');const response=$('responseText').value.trim();if(!response)throw Error('Enter a response');check(await db.from('pd_response_options').insert({org,metric_id:$('responseMetric').value,kind:$('responseType').value,response,active:true}));$('responseText').value='';await loadResponseOptions();renderResponseLibrary();renderMetricInputs();message('Shared response added')}catch(e){error(e)}};
 $('responseRows').onclick=async e=>{const b=e.target.closest('[data-remove-response]');if(!b)return;try{if(!isAdmin)throw Error('Administrator access required');check(await db.from('pd_response_options').update({active:false}).eq('id',b.dataset.removeResponse).eq('org',org));await loadResponseOptions();renderResponseLibrary();renderMetricInputs();message('Response disabled')}catch(e){error(e)}};
+
+$('metricInputs').addEventListener('change',event=>{
+ const picker=event.target.closest('[data-observation]');
+ if(picker)updateResponseCount(picker);
+});

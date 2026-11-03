@@ -60,3 +60,11 @@ The app fetches public configuration from `/api/public-config` at startup and co
 Choose Production (and Preview if needed), save both, then redeploy. The Vercel runtime exposes only these intended public credentials to the browser. Do not paste them into GitHub or screenshots. Supabase Row Level Security must remain enabled and properly restricted.
 
 Existing browser-stored connection information is used as a fallback for the administrator if the Vercel configuration is missing. On new devices, the app will not be able to connect until the environment variables are set. No database schema changes are needed for the connection fix. If V7 was not yet migrated, run `migration-v7.sql` before using its new features.
+
+## V9: Category and compact dropdown fix
+- Correctly filters criteria by each metric's saved category. Attitude appears under Character, not Offense.
+- Shows separate compact expandable Strengths / Areas for Improvement / Recommended Drills checkbox pickers for each skill, with multiple selections and a selected count.
+- Provides skill-specific defaults; custom responses from the Supabase library are appended.
+- Keeps the existing database, organization `fca-baseball`, V7 migration, saved scores, evaluations, improvement plans and automatic Supabase configuration.
+- Upload index.html and app.js to GitHub (plus other files only if not already deployed). No new SQL migration needed.
+- Note: Existing miscategorized metrics in Supabase are not automatically reclassified. If a metric has an incorrect `category` value in `pd_metrics`, correct that record in the app's category library or database.
