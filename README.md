@@ -68,3 +68,9 @@ Existing browser-stored connection information is used as a fallback for the adm
 - Keeps the existing database, organization `fca-baseball`, V7 migration, saved scores, evaluations, improvement plans and automatic Supabase configuration.
 - Upload index.html and app.js to GitHub (plus other files only if not already deployed). No new SQL migration needed.
 - Note: Existing miscategorized metrics in Supabase are not automatically reclassified. If a metric has an incorrect `category` value in `pd_metrics`, correct that record in the app's category library or database.
+
+## V10 — Eight or more choices and custom response per dropdown
+- Each skill's Strengths, Areas for Improvement and Recommended Drills picker contains at least eight standard choices (two skill-specific plus six additional), plus administrator-added responses.
+- Each picker includes a Custom response text field. Coaches can use this instead of, or alongside, the checkboxes. Custom text saves with the individual evaluation, reopens for editing and is included in the existing observation data used by improvement plans.
+- No database migration is required beyond the V7 migration already installed.
+- The six additional responses per type are broadly applicable; for maximum skill specificity, edit the response library for each skill.

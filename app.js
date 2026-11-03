@@ -45,18 +45,52 @@ function skillKey(metric){
  const match=Object.keys(SKILL_RESPONSES).find(k=>name.includes(k));
  return match||({'Offense':'hitting','Defense':'field','Character':'attitude'}[metric.category]||'attitude');
 }
+
+const EXTRA_RESPONSES={
+ strengths:[
+ 'Shows measurable improvement during recent practices.',
+ 'Performs this skill consistently in controlled drills.',
+ 'Applies coaching adjustments during live repetitions.',
+ 'Maintains good fundamentals under moderate pressure.',
+ 'Demonstrates confidence and positive decision-making.',
+ 'Executes this skill with increasing consistency.'
+ ],
+ improvements:[
+ 'Needs greater consistency from practice to game situations.',
+ 'Needs to maintain fundamentals at higher speeds.',
+ 'Needs to apply coaching adjustments without reminders.',
+ 'Needs better preparation before each repetition.',
+ 'Needs to improve execution under pressure.',
+ 'Needs to reduce avoidable mistakes through repetition.'
+ ],
+ drills:[
+ 'Complete 3 focused practice rounds each week and record progress.',
+ 'Perform 15 controlled repetitions with coach feedback.',
+ 'Add 10 game-speed repetitions after fundamentals are consistent.',
+ 'Use video review to identify one improvement point.',
+ 'Repeat the skill under a time or decision-making constraint.',
+ 'Track successful executions over the next two practices.'
+ ]
+};
 function optionsForMetric(metric,type){
  const custom=responseOptions.filter(x=>x.metric_id===metric.id&&x.kind===type&&x.active!==false).map(x=>({id:x.id,text:x.response}));
  const index={strengths:0,improvements:1,drills:2}[type];
  const fallback=(SKILL_RESPONSES[skillKey(metric)]||SKILL_RESPONSES.attitude)[index].map((text,i)=>({id:'default-'+i,text}));
- return [...fallback,...custom.filter(c=>!fallback.some(f=>f.text===c.text))];
+ const extras=EXTRA_RESPONSES[type].map((text,i)=>({id:'extra-'+i,text}));
+ const combined=[...fallback,...extras,...custom];
+ const unique=[];const seen=new Set();
+ for(const item of combined){if(!seen.has(item.text)){seen.add(item.text);unique.push(item)}}
+ return unique;
 }
 function getSelections(){
  const out={};
  document.querySelectorAll('[data-observation]').forEach(el=>{
   const key=el.dataset.observation,kind=el.dataset.kind;
   out[key]??={};
-  out[key][kind]=[...el.querySelectorAll('input[type="checkbox"]:checked')].map(i=>i.value);
+  const chosen=[...el.querySelectorAll('input[type="checkbox"]:checked')].map(i=>i.value);
+  const custom=el.querySelector('[data-custom-response]')?.value.trim();
+  if(custom)chosen.push(custom);
+  out[key][kind]=chosen;
  });
  document.querySelectorAll('[data-custom-note]').forEach(el=>{
   out[el.dataset.customNote]??={};out[el.dataset.customNote].note=el.value;
@@ -75,14 +109,14 @@ function renderMetricInputs(){
    <select data-score="${m.id}" aria-label="Score ${escapeHtml(m.name)}"><option value="">Not Rated</option>${[1,2,3,4,5,6,7,8].map(n=>`<option value="${n}">${n} / 8</option>`).join('')}</select></div>
    ${['strengths','improvements','drills'].map(kind=>{
     const label={strengths:'Strengths',improvements:'Areas for Improvement',drills:'Recommended Drills'}[kind];
-    return `<details class="response-picker" data-observation="${m.id}" data-kind="${kind}"><summary>${label} — <span class="response-count">Choose responses</span></summary><div class="response-picker-body">${optionsForMetric(m,kind).map(o=>`<label class="response-choice"><input type="checkbox" value="${escapeHtml(o.text)}"> <span>${escapeHtml(o.text)}</span></label>`).join('')}</div></details>`;
+    return `<details class="response-picker" data-observation="${m.id}" data-kind="${kind}"><summary>${label} — <span class="response-count">Choose responses</span></summary><div class="response-picker-body">${optionsForMetric(m,kind).map(o=>`<label class="response-choice"><input type="checkbox" value="${escapeHtml(o.text)}"> <span>${escapeHtml(o.text)}</span></label>`).join('')}<label class="custom-response-label">Custom response (optional)</label><textarea data-custom-response rows="2" placeholder="Type a specific observation or drill for this player..."></textarea></div></details>`;
    }).join('')}
    <label>Coach-specific notes</label><textarea data-custom-note="${m.id}" placeholder="Optional observation for this player"></textarea>
   </div>`).join('');
  }).join('');
 }
 function updateResponseCount(picker){
- const count=picker.querySelectorAll('input:checked').length;
+ const count=picker.querySelectorAll('input:checked').length+(picker.querySelector('[data-custom-response]')?.value.trim()?1:0);
  picker.querySelector('.response-count').textContent=count?`${count} selected`:'Choose responses';
 }
 function renderResponseLibrary(){const el=$('responseMetric');if(!el)return;const old=el.value;el.innerHTML=metrics.map(m=>`<option value="${m.id}">${escapeHtml(m.category+' — '+m.name)}</option>`).join('');if(metrics.some(m=>m.id===old))el.value=old;const m=metrics.find(x=>x.id===el.value);if(!m)return;const kind=$('responseType').value;$('responseRows').innerHTML=optionsForMetric(m,kind).map(o=>`<div class="metric"><span>${escapeHtml(o.text)}</span>${isAdmin&&o.id&&!o.id.startsWith('default-')?`<button data-remove-response="${o.id}">Remove</button>`:''}</div>`).join('');$('addResponse').disabled=!isAdmin;$('responseText').disabled=!isAdmin;$('adminInfo').textContent=isAdmin?'Administrator: changes update the shared response library.':'Standard responses are view-only. Ask your administrator to manage shared defaults.'}
@@ -98,7 +132,7 @@ function scoreDelta(n,old){if(old==null)return 'New';const d=Number(n)-Number(ol
 function renderPrevious(){const id=$('evalPlayer').value, target=$('previousEvaluation');if(!id){target.innerHTML='<p class="muted">Choose a player to see their previous evaluation and score trends.</p>';return}const history=playerEvaluations(id).filter(e=>e.id!==$('editingEvaluationId').value),last=history.at(-1);if(!last){target.innerHTML='<p class="muted">First evaluation for this player — no previous scores.</p>';return}target.innerHTML='<h3>Previous Evaluation: '+escapeHtml(last.evaluated_at)+'</h3><p class="muted">Changes compare your current scores with the latest saved evaluation.</p><div id="previousScoreRows"></div>';renderScoreComparison()}
 function renderScoreComparison(){const id=$('evalPlayer').value,last=playerEvaluations(id).filter(e=>e.id!==$('editingEvaluationId').value).at(-1),target=$('previousScoreRows');if(!target||!last)return;target.innerHTML=[...document.querySelectorAll('[data-score]')].map(s=>{const m=metrics.find(m=>m.id===s.dataset.score),prev=last.scores?.[s.dataset.score],now=s.value;return `<div class="metric"><span>${escapeHtml(m?.name||'Skill')}</span><span>Previous: ${prev??'—'} · Current: ${now||'—'} ${now?scoreDelta(now,prev):''}</span></div>`}).join('')}
 function renderSavedEvaluations(){const id=$('progressPlayer').value,target=$('savedEvaluationList');if(!id){target.innerHTML='<p class="muted">Select a player to access saved evaluations.</p>';return}const history=playerEvaluations(id).slice().reverse();target.innerHTML=history.length?history.map(e=>`<div class="metric"><div><b>${escapeHtml(e.evaluated_at)} — ${escapeHtml(e.setting)}</b><div class="muted"><small>Offense ${average(e,'Offense')} · Defense ${average(e,'Defense')} · Character ${average(e,'Character')} · ${escapeHtml(e.coach_email)}</small></div></div><button class="noprint" data-edit-eval="${e.id}">Open / Edit</button></div>`).join(''):'<p>No evaluations saved for this player.</p>'}
-function startEditEvaluation(id){const e=evaluations.find(x=>x.id===id);if(!e)return;$('editingEvaluationId').value=e.id;$('evalPlayer').value=e.player_id;$('evalDate').value=e.evaluated_at;$('evalSetting').value=e.setting;$('evalLevel').value=e.level||2;renderMetricInputs();Object.entries(e.observations||{}).forEach(([metricId,entry])=>{for(const kind of ['strengths','improvements','drills']){const picker=document.querySelector(`[data-observation="${metricId}"][data-kind="${kind}"]`);if(picker){picker.querySelectorAll('input[type="checkbox"]').forEach(o=>o.checked=(entry[kind]||[]).includes(o.value));updateResponseCount(picker)}}const note=document.querySelector(`[data-custom-note="${metricId}"]`);if(note)note.value=entry.note||''});$('strengths').value=e.strengths||'';$('weaknesses').value=e.weaknesses||'';$('coachNotes').value=e.notes||'';document.querySelectorAll('[data-score]').forEach(s=>s.value=e.scores?.[s.dataset.score]??'');$('evaluationHeading').textContent='Edit Saved Evaluation';$('saveEvaluation').textContent='Update Evaluation';$('cancelEvaluationEdit').classList.remove('hide');setTab('evaluation');renderPrevious();window.scrollTo({top:0,behavior:'smooth'})}
+function startEditEvaluation(id){const e=evaluations.find(x=>x.id===id);if(!e)return;$('editingEvaluationId').value=e.id;$('evalPlayer').value=e.player_id;$('evalDate').value=e.evaluated_at;$('evalSetting').value=e.setting;$('evalLevel').value=e.level||2;renderMetricInputs();Object.entries(e.observations||{}).forEach(([metricId,entry])=>{for(const kind of ['strengths','improvements','drills']){const picker=document.querySelector(`[data-observation="${metricId}"][data-kind="${kind}"]`);if(picker){const saved=entry[kind]||[];const known=new Set([...picker.querySelectorAll('input[type="checkbox"]')].map(o=>o.value));picker.querySelectorAll('input[type="checkbox"]').forEach(o=>o.checked=saved.includes(o.value));const custom=picker.querySelector('[data-custom-response]');if(custom)custom.value=saved.filter(x=>!known.has(x)).join('; ');updateResponseCount(picker)}}const note=document.querySelector(`[data-custom-note="${metricId}"]`);if(note)note.value=entry.note||''});$('strengths').value=e.strengths||'';$('weaknesses').value=e.weaknesses||'';$('coachNotes').value=e.notes||'';document.querySelectorAll('[data-score]').forEach(s=>s.value=e.scores?.[s.dataset.score]??'');$('evaluationHeading').textContent='Edit Saved Evaluation';$('saveEvaluation').textContent='Update Evaluation';$('cancelEvaluationEdit').classList.remove('hide');setTab('evaluation');renderPrevious();window.scrollTo({top:0,behavior:'smooth'})}
 function resetEvaluation(){ $('editingEvaluationId').value='';$('evaluationHeading').textContent='Player Evaluation';$('saveEvaluation').textContent='Save Evaluation';$('cancelEvaluationEdit').classList.add('hide');['strengths','weaknesses','coachNotes'].forEach(id=>$(id).value='');document.querySelectorAll('[data-score]').forEach(s=>s.value='');renderPrevious()}
 
 const PLAN_TEMPLATES={
@@ -180,6 +214,7 @@ $('responseType').onchange=renderResponseLibrary;
 $('addResponse').onclick=async()=>{try{if(!isAdmin)throw Error('Administrator access required');const response=$('responseText').value.trim();if(!response)throw Error('Enter a response');check(await db.from('pd_response_options').insert({org,metric_id:$('responseMetric').value,kind:$('responseType').value,response,active:true}));$('responseText').value='';await loadResponseOptions();renderResponseLibrary();renderMetricInputs();message('Shared response added')}catch(e){error(e)}};
 $('responseRows').onclick=async e=>{const b=e.target.closest('[data-remove-response]');if(!b)return;try{if(!isAdmin)throw Error('Administrator access required');check(await db.from('pd_response_options').update({active:false}).eq('id',b.dataset.removeResponse).eq('org',org));await loadResponseOptions();renderResponseLibrary();renderMetricInputs();message('Response disabled')}catch(e){error(e)}};
 
+$('metricInputs').addEventListener('input',event=>{const picker=event.target.closest('[data-observation]');if(picker)updateResponseCount(picker)});
 $('metricInputs').addEventListener('change',event=>{
  const picker=event.target.closest('[data-observation]');
  if(picker)updateResponseCount(picker);
