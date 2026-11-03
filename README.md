@@ -74,3 +74,6 @@ Existing browser-stored connection information is used as a fallback for the adm
 - Each picker includes a Custom response text field. Coaches can use this instead of, or alongside, the checkboxes. Custom text saves with the individual evaluation, reopens for editing and is included in the existing observation data used by improvement plans.
 - No database migration is required beyond the V7 migration already installed.
 - The six additional responses per type are broadly applicable; for maximum skill specificity, edit the response library for each skill.
+
+## V11 — Delete saved evaluations
+Under Saved Evaluations & Trends, select a player, then click Delete next to the evaluation. A confirmation identifies the player, date and setting. Only the selected record is deleted, and trends are refreshed. Existing improvement plans are retained. Deletion requires a database policy allowing the signed-in user to delete the record; if permission is denied the app displays an error. No schema migration is required.
