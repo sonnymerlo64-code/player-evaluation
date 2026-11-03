@@ -48,3 +48,15 @@ Each saved plan includes Print / Save PDF. Print output is a clean US Letter por
 Levels 1–4 progressively reveal more criteria; existing scores and evaluations are preserved. Each skill offers three separate multi-select lists for strengths, improvements, and recommended drills, plus coach-specific notes. Organization-wide response overrides are stored in Supabase, while a built-in category-based library is available immediately. An administrator may add or disable shared options; coaches may select options and write individual notes. Structured observations are saved to `pd_evaluations.observations`, and recommended drills from the lowest-scoring skill populate the editable improvement plan.
 
 **Known limitations:** Level depth is presently based on the first 2, 4, or all active skills per category, rather than a configurable level-to-skill mapping. Shared response editing adds/disables options; editing text in place requires adding a replacement and disabling the old option. The existing project's original organization RLS policies are permissive for authenticated users and must be hardened before use across separate organizations. Browser-side multi-select uses Command-click on Mac to choose multiple items. Existing V6 printable improvement plans are retained. Live Supabase and Vercel integration tests have not been performed.
+
+
+## V8 automatic database connection (no repeated coach setup)
+
+The app fetches public configuration from `/api/public-config` at startup and connects automatically. The endpoint reads Vercel environment variables. This requires **one administrator setup** in Vercel Project → Settings → Environment Variables:
+
+- `SUPABASE_URL`: the existing project's URL, `https://<project-ref>.supabase.co`
+- `SUPABASE_PUBLISHABLE_KEY`: the existing project's **publishable** key (`sb_publishable_...`) or legacy public anon key; **never** use a secret/service-role key.
+
+Choose Production (and Preview if needed), save both, then redeploy. The Vercel runtime exposes only these intended public credentials to the browser. Do not paste them into GitHub or screenshots. Supabase Row Level Security must remain enabled and properly restricted.
+
+Existing browser-stored connection information is used as a fallback for the administrator if the Vercel configuration is missing. On new devices, the app will not be able to connect until the environment variables are set. No database schema changes are needed for the connection fix. If V7 was not yet migrated, run `migration-v7.sql` before using its new features.

@@ -111,7 +111,18 @@ $('planList').onclick=async e=>{const print=e.target.closest('[data-print-plan]'
 $('addMetric').onclick=async()=>{try{const name=$('metricName').value.trim();if(!name)throw Error('Enter a criterion name.');check(await db.from('pd_metrics').insert({org,category:$('metricCategory').value,name,description:$('metricDesc').value.trim(),active:true}));$('metricName').value='';$('metricDesc').value='';await loadAll();message('Criterion added')}catch(e){error(e)}};
 $('libraryRows').onchange=async e=>{const id=e.target.dataset.toggle;if(!id)return;try{check(await db.from('pd_metrics').update({active:e.target.checked}).eq('id',id).eq('org',org));await loadAll()}catch(err){error(err)}};
 $('evalDate').value=new Date().toLocaleDateString('en-CA');
-const saved=localStorage.getItem('playerdev_config');if(saved){try{const {url,key}=JSON.parse(saved);$('projectUrl').value=url;$('anonKey').value=key;initDb(url,key);restore()}catch(e){error(e)}}
+async function bootDatabase(){
+ try {
+   const r=await fetch('/api/public-config',{cache:'no-store'});
+   if(r.ok){const cfg=await r.json();if(cfg.configured){initDb(cfg.url,cfg.key);await restore();return}}
+   // Keep working for the existing administrator if a previous browser connection is available.
+   const saved=localStorage.getItem('playerdev_config');
+   if(saved){const cfg=JSON.parse(saved);if(cfg.url&&cfg.key){initDb(cfg.url,cfg.key);await restore();return}}
+   visible('configPanel');
+   $('configHelp').textContent='Automatic connection is not configured in Vercel yet. The administrator must set SUPABASE_URL and SUPABASE_PUBLISHABLE_KEY once in Vercel Environment Variables, then redeploy. Coaches will not need to enter these.';
+ }catch(e){error(e);visible('configPanel');$('configHelp').textContent='Automatic connection failed. Check the Vercel environment variables and deployment.'}
+}
+bootDatabase();
 
 
 $('evalLevel').onchange=()=>{renderMetricInputs();renderPrevious()};
