@@ -81,6 +81,5 @@ Under Saved Evaluations & Trends, select a player, then click Delete next to the
 ## V12 — Delete an individual improvement plan
 Each saved plan has a Delete Plan button. Confirmation names the player and focus skill. Only that plan is deleted; other plans, evaluations, and trends are preserved. Requires existing Supabase DELETE permissions on pd_plans.
 
-
-## Evaluation types and coach recommendations
-Evaluation Type now offers Initial Evaluation, Mid-Season Evaluation, and End-of-Season Evaluation. Older saved settings remain visible and are retained when editing. Each skill includes a Coach Recommendation dropdown with multiple preset choices and an Other write-in field. Recommendations are saved with observations, restored when editing, and shown in progress reports. No database migration is required for this update.
+## V13 Baseball response library
+Replaced generic six-option additions with six baseball-specific responses for each of the 18 default skills, across strengths, improvements, and drills. Each dropdown has at least eight defaults and supports custom entries. Existing saved evaluations and administrator response options are preserved. No database migration required.
