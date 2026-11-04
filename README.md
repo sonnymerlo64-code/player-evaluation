@@ -77,3 +77,10 @@ Existing browser-stored connection information is used as a fallback for the adm
 
 ## V11 — Delete saved evaluations
 Under Saved Evaluations & Trends, select a player, then click Delete next to the evaluation. A confirmation identifies the player, date and setting. Only the selected record is deleted, and trends are refreshed. Existing improvement plans are retained. Deletion requires a database policy allowing the signed-in user to delete the record; if permission is denied the app displays an error. No schema migration is required.
+
+## V12 — Delete an individual improvement plan
+Each saved plan has a Delete Plan button. Confirmation names the player and focus skill. Only that plan is deleted; other plans, evaluations, and trends are preserved. Requires existing Supabase DELETE permissions on pd_plans.
+
+
+## Evaluation types and coach recommendations
+Evaluation Type now offers Initial Evaluation, Mid-Season Evaluation, and End-of-Season Evaluation. Older saved settings remain visible and are retained when editing. Each skill includes a Coach Recommendation dropdown with multiple preset choices and an Other write-in field. Recommendations are saved with observations, restored when editing, and shown in progress reports. No database migration is required for this update.
