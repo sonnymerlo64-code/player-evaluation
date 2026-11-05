@@ -228,7 +228,7 @@ function renderPlans(){$('planList').innerHTML=plans.length?plans.map(p=>{const 
 async function addPlayer(first,last,team,jersey){first=cleanName(first);last=cleanName(last);team=String(team??'').trim();if(!first||!last||!team)throw Error('First name, last name and team are required.');if(players.some(p=>p.first_name.toLowerCase()===first.toLowerCase()&&p.last_name.toLowerCase()===last.toLowerCase()&&p.team.toLowerCase()===team.toLowerCase()))return false;check(await db.from('pd_players').insert({org,first_name:first,last_name:last,team,jersey:jersey||null}));return true}
 function csvRows(raw){const result=[];let row=[],cell='',quoted=false;for(let i=0;i<raw.length;i++){const ch=raw[i];if(ch==='"'){if(quoted&&raw[i+1]==='"'){cell+='"';i++}else quoted=!quoted}else if(ch===','&&!quoted){row.push(cell);cell=''}else if((ch==='\n'||ch==='\r')&&!quoted){if(ch==='\r'&&raw[i+1]==='\n')i++;row.push(cell);if(row.some(v=>v.trim()))result.push(row);row=[];cell=''}else cell+=ch}row.push(cell);if(row.some(v=>v.trim()))result.push(row);return result}
 function download(name,body){const a=document.createElement('a'),url=URL.createObjectURL(new Blob([body],{type:'text/csv;charset=utf-8'}));a.href=url;a.download=name;a.click();setTimeout(()=>URL.revokeObjectURL(url),1000)}
-$('connect').onclick=connect;$('changeDb').onclick=()=>{localStorage.removeItem('playerdev_config');location.reload()};$('login').onclick=async()=>{try{check(await db.auth.signInWithPassword({email:$('email').value.trim(),password:$('password').value}));await restore()}catch(e){error(e)}};$('logout').onclick=async()=>{await db.auth.signOut();session=null;$('logout').classList.add('hide');visible('authPanel')};$('joinOrg').onclick=async()=>{try{org=$('orgCode').value.trim().toLowerCase();if(!/^[a-z0-9][a-z0-9-]{2,60}$/.test(org))throw Error('Use 3–61 lowercase letters, numbers or hyphens.');localStorage.setItem('playerdev_org',org);await loadAll();visible('app')}catch(e){error(e)}};document.querySelectorAll('[data-tab]').forEach(b=>b.onclick=()=>setTab(b.dataset.tab));
+$('retryConnection').onclick=()=>location.reload();$('changeDb').onclick=()=>{localStorage.removeItem('playerdev_config');location.reload()};$('login').onclick=async()=>{try{check(await db.auth.signInWithPassword({email:$('email').value.trim(),password:$('password').value}));await restore()}catch(e){error(e)}};$('logout').onclick=async()=>{await db.auth.signOut();session=null;$('logout').classList.add('hide');visible('authPanel')};$('joinOrg').onclick=async()=>{try{org=$('orgCode').value.trim().toLowerCase();if(!/^[a-z0-9][a-z0-9-]{2,60}$/.test(org))throw Error('Use 3–61 lowercase letters, numbers or hyphens.');localStorage.setItem('playerdev_org',org);await loadAll();visible('app')}catch(e){error(e)}};document.querySelectorAll('[data-tab]').forEach(b=>b.onclick=()=>setTab(b.dataset.tab));
 $('addPlayer').onclick=async()=>{try{await addPlayer($('first').value,$('last').value,$('team').value,$('jersey').value);['first','last','jersey'].forEach(id=>$(id).value='');await loadAll();message('Player added')}catch(e){error(e)}};
 $('rosterRows').onclick=e=>{const btn=e.target.closest('[data-edit-player]');if(!btn)return;const p=players.find(x=>x.id===btn.dataset.editPlayer);if(!p)return;$('editPlayerId').value=p.id;$('editFirst').value=cleanName(p.first_name);$('editLast').value=cleanName(p.last_name);$('editTeam').value=p.team;$('editJersey').value=p.jersey||'';$('editPlayerPanel').classList.remove('hide');$('editPlayerPanel').scrollIntoView({behavior:'smooth',block:'center'})};
 $('cancelPlayerEdit').onclick=()=>{$('editPlayerPanel').classList.add('hide')};
@@ -309,14 +309,15 @@ $('libraryRows').onchange=async e=>{const id=e.target.dataset.toggle;if(!id)retu
 $('evalDate').value=new Date().toLocaleDateString('en-CA');
 async function bootDatabase(){
  try {
+   // Production connection is configured centrally in Vercel; coaches never enter keys.
    const r=await fetch('/api/public-config',{cache:'no-store'});
-   if(r.ok){const cfg=await r.json();if(cfg.configured){initDb(cfg.url,cfg.key);await restore();return}}
-   // Keep working for the existing administrator if a previous browser connection is available.
+   if(r.ok){const cfg=await r.json();if(cfg.configured&&cfg.url&&cfg.key){initDb(cfg.url,cfg.key);await restore();return}}
+   // Backward compatibility for admins who connected in an earlier version.
    const saved=localStorage.getItem('playerdev_config');
    if(saved){const cfg=JSON.parse(saved);if(cfg.url&&cfg.key){initDb(cfg.url,cfg.key);await restore();return}}
    visible('configPanel');
-   $('configHelp').textContent='Automatic connection is not configured in Vercel yet. The administrator must set SUPABASE_URL and SUPABASE_PUBLISHABLE_KEY once in Vercel Environment Variables, then redeploy. Coaches will not need to enter these.';
- }catch(e){error(e);visible('configPanel');$('configHelp').textContent='Automatic connection failed. Check the Vercel environment variables and deployment.'}
+   $('configHelp').textContent='Database configuration is missing from this Vercel deployment. An administrator must set SUPABASE_URL and SUPABASE_PUBLISHABLE_KEY in Vercel Project Settings → Environment Variables and redeploy. Coaches will never be asked to enter credentials.';
+ }catch(e){console.error('Database connection:',e);visible('configPanel');$('configHelp').textContent='Database connection failed. Check the Vercel deployment configuration and retry.'}
 }
 bootDatabase();
 
