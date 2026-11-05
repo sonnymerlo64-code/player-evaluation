@@ -83,3 +83,19 @@ Each saved plan has a Delete Plan button. Confirmation names the player and focu
 
 ## V13 Baseball response library
 Replaced generic six-option additions with six baseball-specific responses for each of the 18 default skills, across strengths, improvements, and drills. Each dropdown has at least eight defaults and supports custom entries. Existing saved evaluations and administrator response options are preserved. No database migration required.
+
+## V14 — Phone-first Quick Mode + Detailed Mode
+- Quick Mode is the default for evaluations. Coaches move through one skill at a time, tap a large 1–8 score, choose a baseball-specific strength, improvement, and drill, and optionally enter a note.
+- The same player/date/setting/level fields are shared by both modes. Use the mode switch to access all existing multi-select responses and detailed observations.
+- Quick Mode writes to the same score and observation controls as Detailed Mode; Save and Update use the existing Supabase evaluation table and save workflow. Existing evaluations, improvement plans, printing, trends, and delete controls are retained.
+- No schema migration is required. The new UI is intended for small screens; please test on a phone and confirm saving, editing and switching modes before rolling out to coaches.
+
+## V15: Four-level certification (written tests intentionally deferred)
+1. Run `migration-v15.sql` in the existing Supabase project's SQL Editor **before** deploying V15.
+2. Replace `app.js`, `index.html` and the other included deployment files in GitHub. Keep the existing Vercel environment variables and organization code.
+3. Staff admins listed in `pd_eval_admins` can edit base skill names/descriptions under Evaluation Category Library, and each level's required status and specific descriptions in Staff Level Skill Editor.
+4. Levels are progressively more complex; all required skills must be scored and the percentage must reach **90%** before an administrator can approve certification in the new Level Certification tab.
+5. Historical evaluations remain in `pd_evaluations`; certifications are separate and linked to the saved evaluation. Existing quick and detailed modes remain.
+6. The position-specific written test system is **not included** in this release, per request to build the main app first.
+
+Important: V15 changes database schema and must be tested with a test player before staff-wide rollout. No live browser or Supabase connection was available during packaging.

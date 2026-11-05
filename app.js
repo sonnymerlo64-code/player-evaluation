@@ -1,20 +1,20 @@
 'use strict';
 const $=id=>document.getElementById(id), escapeHtml=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
-let db,session,org='',players=[],metrics=[],evaluations=[],plans=[],responseOptions=[],isAdmin=false;
+let db,session,org='',players=[],metrics=[],evaluations=[],plans=[],responseOptions=[],levelSkills=[],certifications=[],isAdmin=false;
 const defaults=[['Offense','Hitting Mechanics','Stance, balance, load and swing path'],['Offense','Contact / Barrel Control','Consistent quality contact'],['Offense','Plate Discipline','Strike-zone awareness and pitch selection'],['Offense','Situational Hitting','Approach with runners and outs'],['Offense','Baserunning','Reads, leads, turns and decisions'],['Offense','Bunting','Technique and execution'],['Defense','Fielding Fundamentals','Ready position, hands and footwork'],['Defense','Throwing Accuracy','Target accuracy and consistency'],['Defense','Arm Strength','Carry and mechanics'],['Defense','Range / First Step','Reaction and ability to cover ground'],['Defense','Baseball IQ','Anticipation, positioning and decisions'],['Defense','Communication','Talks and directs teammates'],['Defense','Position-Specific Skills','Execution of primary position responsibilities'],['Character','Attitude','Coachability, response to adversity and respect'],['Character','Effort','Hustle, preparation and consistent work'],['Character','Body Language','Positive, engaged demeanor'],['Character','Leadership','Encouragement and accountability'],['Character','Focus','Attention and practice habits']];
 function message(s){const n=$('status');n.textContent=s;n.style.display='block';clearTimeout(window._notice);window._notice=setTimeout(()=>n.style.display='none',4200)}
 function error(e){console.error(e);message('Error: '+(e.message||e))}
 function visible(id){for(const v of ['configPanel','authPanel','orgPanel','app'])$(v).classList.toggle('hide',v!==id)}
 function check(r){if(r.error)throw r.error;return r.data}
-function setTab(tab){document.querySelectorAll('#app section').forEach(e=>e.classList.toggle('hide',e.id!==tab));document.querySelectorAll('[data-tab]').forEach(b=>b.classList.toggle('active',b.dataset.tab===tab));if(tab==='progress'){renderProgress();renderSavedEvaluations();}if(tab==='plans')renderPlans();if(tab==='library'){renderLibrary();renderResponseLibrary()}}
+function setTab(tab){document.querySelectorAll('#app section').forEach(e=>e.classList.toggle('hide',e.id!==tab));document.querySelectorAll('[data-tab]').forEach(b=>b.classList.toggle('active',b.dataset.tab===tab));if(tab==='progress'){renderProgress();renderSavedEvaluations();}if(tab==='plans')renderPlans();if(tab==='library'){renderLibrary();renderResponseLibrary();renderLevelEditor()}if(tab==='certification')renderCertifications()}
 function initDb(url,key){db=supabase.createClient(url,key,{auth:{persistSession:true,autoRefreshToken:true}})}
 async function connect(){try{const url=$('projectUrl').value.trim(),key=$('anonKey').value.trim();if(!/^https:\/\/.+\.supabase\.co\/?$/.test(url)||!key)throw Error('Enter a valid Supabase URL and public key.');initDb(url,key);localStorage.setItem('playerdev_config',JSON.stringify({url,key}));await restore()}catch(e){error(e)}}
 async function restore(){try{const {data:{session:s},error:e}=await db.auth.getSession();if(e)throw e;session=s;if(!s){visible('authPanel');return} $('who').textContent=s.user.email;$('logout').classList.remove('hide');org=localStorage.getItem('playerdev_org')||'';if(!org){visible('orgPanel');return}await loadAll();visible('app')}catch(e){error(e);visible('authPanel')}}
-async function loadAll(){const [a,b,c,d]=await Promise.all([db.from('pd_players').select('*').eq('org',org).order('last_name'),db.from('pd_metrics').select('*').eq('org',org).order('category').order('name'),db.from('pd_evaluations').select('*').eq('org',org).order('evaluated_at'),db.from('pd_plans').select('*').eq('org',org).order('created_at',{ascending:false})]);players=check(a)||[];metrics=check(b)||[];evaluations=check(c)||[];plans=check(d)||[];if(!metrics.length){const rows=defaults.map(([category,name,description])=>({org,category,name,description,active:true}));check(await db.from('pd_metrics').insert(rows));metrics=check(await db.from('pd_metrics').select('*').eq('org',org).order('category').order('name'))}await loadResponseOptions();renderAll()}
+async function loadAll(){const [a,b,c,d]=await Promise.all([db.from('pd_players').select('*').eq('org',org).order('last_name'),db.from('pd_metrics').select('*').eq('org',org).order('category').order('name'),db.from('pd_evaluations').select('*').eq('org',org).order('evaluated_at'),db.from('pd_plans').select('*').eq('org',org).order('created_at',{ascending:false})]);players=check(a)||[];metrics=check(b)||[];evaluations=check(c)||[];plans=check(d)||[];if(!metrics.length){const rows=defaults.map(([category,name,description])=>({org,category,name,description,active:true}));check(await db.from('pd_metrics').insert(rows));metrics=check(await db.from('pd_metrics').select('*').eq('org',org).order('category').order('name'))}await loadResponseOptions();await loadCertificationData();renderAll()}
 function cleanName(s){return String(s??'').normalize('NFKC').replace(/[\uFFFD\u00A0\u2000-\u200D\uFEFF]/g,' ').replace(/\s+/g,' ').trim()}
 function fullName(p){return `${p.first_name} ${p.last_name}`}
 function options(id){const previous=$(id).value;$(id).innerHTML='<option value="">Choose player...</option>'+players.map(p=>`<option value="${p.id}">${escapeHtml(fullName(p))} — ${escapeHtml(p.team)}</option>`).join('');if(players.some(p=>p.id===previous))$(id).value=previous}
-function renderAll(){$('playersCount').textContent=players.length;$('evaluationsCount').textContent=evaluations.length;$('plansCount').textContent=plans.length;['evalPlayer','progressPlayer','planPlayer'].forEach(options);$('rosterRows').innerHTML=players.map(p=>`<tr><td>${escapeHtml(fullName(p))}</td><td>${escapeHtml(p.team)}</td><td>${escapeHtml(p.jersey)}</td><td>${evaluations.filter(e=>e.player_id===p.id).length}</td><td class="noprint"><button data-edit-player="${p.id}">Edit</button></td></tr>`).join('');renderMetricInputs();renderResponseLibrary();renderProgress();renderSavedEvaluations();renderPlans();renderLibrary();const previous=$('planMetric').value;$('planMetric').innerHTML=metrics.filter(m=>m.active).map(m=>`<option value="${m.id}">${escapeHtml(m.category+' — '+m.name)}</option>`).join('');$('planMetric').value=previous||$('planMetric').value}
+function renderAll(){$('playersCount').textContent=players.length;$('evaluationsCount').textContent=evaluations.length;$('plansCount').textContent=plans.length;['evalPlayer','progressPlayer','planPlayer'].forEach(options);$('rosterRows').innerHTML=players.map(p=>`<tr><td>${escapeHtml(fullName(p))}</td><td>${escapeHtml(p.team)}</td><td>${escapeHtml(p.jersey)}</td><td>${evaluations.filter(e=>e.player_id===p.id).length}</td><td class="noprint"><button data-edit-player="${p.id}">Edit</button></td></tr>`).join('');renderMetricInputs();renderResponseLibrary();renderProgress();renderSavedEvaluations();renderPlans();renderLibrary();renderLevelEditor();renderCertifications();const previous=$('planMetric').value;$('planMetric').innerHTML=metrics.filter(m=>m.active).map(m=>`<option value="${m.id}">${escapeHtml(m.category+' — '+m.name)}</option>`).join('');$('planMetric').value=previous||$('planMetric').value}
 
 
 // V9: category filtering uses each saved metric's actual category.
@@ -100,13 +100,13 @@ function getSelections(){
 }
 function renderMetricInputs(){
  const level=Number($('evalLevel').value||2);
- $('levelInfo').textContent=['','Foundation: broad essentials','Development: skill fundamentals','Advanced: detailed skills and observations','Comprehensive: all criteria'][level];
- const selected=metrics.filter(m=>m.active);
+ $('levelInfo').textContent=['','Foundation: fundamentals and correct technique','Development: repeatable mechanics and execution','Advanced: game-speed decisions and adjustments','Elite: complex situational and position-specific mastery'][level]+' · 90% required to certify.';
+ const selected=metrics.filter(m=>m.active&&levelSkill(m.id,level).required);
  $('metricInputs').innerHTML=CATEGORY_ORDER.map(category=>{
-  const subset=selected.filter(m=>m.category===category).slice(0,level===1?2:level===2?4:Infinity);
+  const subset=selected.filter(m=>m.category===category);
   if(!subset.length)return '';
   return `<h3>${category}</h3>`+subset.map(m=>`<div class="card" data-metric-card="${m.id}">
-   <div class="metric"><div><b>${escapeHtml(m.name)}</b><div class="muted"><small>${escapeHtml(m.description)}</small></div></div>
+   <div class="metric"><div><b>${escapeHtml(m.name)}</b><div class="muted"><small>${escapeHtml(levelSkill(m.id,level).description)}</small></div></div>
    <select data-score="${m.id}" aria-label="Score ${escapeHtml(m.name)}"><option value="">Not Rated</option>${[1,2,3,4,5,6,7,8].map(n=>`<option value="${n}">${n} / 8</option>`).join('')}</select></div>
    ${['strengths','improvements','drills'].map(kind=>{
     const label={strengths:'Strengths',improvements:'Areas for Improvement',drills:'Recommended Drills'}[kind];
@@ -115,14 +115,65 @@ function renderMetricInputs(){
    <label>Coach-specific notes</label><textarea data-custom-note="${m.id}" placeholder="Optional observation for this player"></textarea>
   </div>`).join('');
  }).join('');
+ if(typeof quickLoad==='function')quickLoad();
 }
+
+// Phone-first Quick Mode edits the SAME underlying controls used by Detailed Mode.
+// No new storage, schema or save path: existing evaluations remain compatible.
+let evalEntryMode='quick', quickIndex=0;
+function quickMetricCards(){return [...document.querySelectorAll('#metricInputs [data-metric-card]')]}
+function quickSelectOptions(select,metric,kind,selected){
+ const choices=optionsForMetric(metric,kind).map(x=>x.text);
+ select.innerHTML='<option value="">None selected</option>'+choices.map((x,i)=>`<option value="${i}">${escapeHtml(x)}</option>`).join('')+'<option value="__custom">Custom response...</option>';
+ select.dataset.choices=JSON.stringify(choices);
+ select.value=choices.indexOf(selected)>=0?String(choices.indexOf(selected)):selected?'__custom':'';
+ if(select.value==='__custom'&&selected){select.dataset.customValue=selected}else{select.dataset.customValue=''}
+}
+function quickCurrent(){const cards=quickMetricCards();quickIndex=Math.max(0,Math.min(quickIndex,cards.length-1));return cards[quickIndex]}
+function quickLoad(){
+ const cards=quickMetricCards(),card=quickCurrent();if(!card)return;
+ const metric=metrics.find(m=>String(m.id)===card.dataset.metricCard);if(!metric)return;
+ $('quickProgress').textContent=`Skill ${quickIndex+1} of ${cards.length}`;
+ $('quickCategory').textContent=metric.category;
+ $('quickTrackFill').style.width=((quickIndex+1)/cards.length*100)+'%';
+ $('quickSkillName').textContent=metric.name;$('quickSkillDescription').textContent=metric.description||'';
+ const score=card.querySelector('[data-score]');
+ $('quickRatings').innerHTML=[1,2,3,4,5,6,7,8].map(n=>`<button type="button" data-quick-rating="${n}" class="${score.value===String(n)?'selected':''}" aria-pressed="${score.value===String(n)}">${n}</button>`).join('');
+ for(const [id,kind] of [['quickStrength','strengths'],['quickImprovement','improvements'],['quickDrill','drills']]){
+  const picker=card.querySelector(`[data-kind="${kind}"]`);
+  const chosen=picker?.querySelector('input:checked')?.value||picker?.querySelector('[data-custom-response]')?.value||'';
+  quickSelectOptions($(id),metric,kind,chosen);
+ }
+ $('quickNote').value=card.querySelector('[data-custom-note]')?.value||'';
+ $('quickPrev').disabled=quickIndex===0;
+ $('quickNext').textContent=quickIndex===cards.length-1?'Review & Save':'Next Skill';
+}
+function quickSetResponse(kind,select){
+ const card=quickCurrent();if(!card)return;
+ const picker=card.querySelector(`[data-kind="${kind}"]`);if(!picker)return;
+ const choices=JSON.parse(select.dataset.choices||'[]');
+ const value=select.value==='__custom'?prompt('Enter your custom baseball observation:',select.dataset.customValue||''):select.value===''?'':choices[Number(select.value)];
+ if(value===null){quickLoad();return}
+ picker.querySelectorAll('input[type="checkbox"]').forEach(el=>el.checked=(el.value===value));
+ const custom=picker.querySelector('[data-custom-response]');if(custom)custom.value=[...picker.querySelectorAll('input[type="checkbox"]')].some(el=>el.value===value)?'':value;
+ updateResponseCount(picker);quickLoad();
+}
+function setEvalMode(mode){
+ evalEntryMode=mode;
+ $('quickEvaluation').classList.toggle('hide',mode!=='quick');
+ $('metricInputs').classList.toggle('quick-hidden',mode==='quick');
+ $('quickModeBtn').classList.toggle('primary',mode==='quick');
+ $('detailedModeBtn').classList.toggle('primary',mode==='detailed');
+ if(mode==='quick')quickLoad();
+}
+function quickAdvance(delta){const cards=quickMetricCards();if(quickIndex===cards.length-1&&delta>0){$('saveEvaluation').scrollIntoView({behavior:'smooth',block:'center'});return}quickIndex=Math.max(0,Math.min(cards.length-1,quickIndex+delta));quickLoad()}
 function updateResponseCount(picker){
  const count=picker.querySelectorAll('input:checked').length+(picker.querySelector('[data-custom-response]')?.value.trim()?1:0);
  picker.querySelector('.response-count').textContent=count?`${count} selected`:'Choose responses';
 }
 function renderResponseLibrary(){const el=$('responseMetric');if(!el)return;const old=el.value;el.innerHTML=metrics.map(m=>`<option value="${m.id}">${escapeHtml(m.category+' — '+m.name)}</option>`).join('');if(metrics.some(m=>m.id===old))el.value=old;const m=metrics.find(x=>x.id===el.value);if(!m)return;const kind=$('responseType').value;$('responseRows').innerHTML=optionsForMetric(m,kind).map(o=>`<div class="metric"><span>${escapeHtml(o.text)}</span>${isAdmin&&o.id&&!o.id.startsWith('default-')?`<button data-remove-response="${o.id}">Remove</button>`:''}</div>`).join('');$('addResponse').disabled=!isAdmin;$('responseText').disabled=!isAdmin;$('adminInfo').textContent=isAdmin?'Administrator: changes update the shared response library.':'Standard responses are view-only. Ask your administrator to manage shared defaults.'}
 async function loadResponseOptions(){const r=await db.from('pd_response_options').select('*').eq('org',org);if(r.error)throw Error('V7 database migration required. Run migration-v7.sql in Supabase first: '+r.error.message);responseOptions=r.data||[];const a=await db.from('pd_eval_admins').select('email').eq('org',org).eq('email',session.user.email.toLowerCase()).maybeSingle();if(a.error)throw a.error;isAdmin=!!a.data}
-function renderLibrary(){$('libraryRows').innerHTML=['Offense','Defense','Character'].map(c=>`<h3>${c}</h3>`+metrics.filter(m=>m.category===c).map(m=>`<div class="metric"><div><b>${escapeHtml(m.name)}</b><div class="muted">${escapeHtml(m.description)}</div></div><label style="white-space:nowrap;color:white"><input type="checkbox" data-toggle="${m.id}" ${m.active?'checked':''} style="width:auto"> Include</label></div>`).join('')).join('')}
+function renderLibrary(){$('libraryRows').innerHTML=['Offense','Defense','Character'].map(c=>`<h3>${c}</h3>`+metrics.filter(m=>m.category===c).map(m=>`<div class="metric"><div><b>${escapeHtml(m.name)}</b><div class="muted">${escapeHtml(m.description)}</div><button data-edit-metric="${m.id}" type="button">Edit Skill</button></div><label style="white-space:nowrap;color:white"><input type="checkbox" data-toggle="${m.id}" ${m.active?'checked':''} style="width:auto"> Include</label></div>`).join('')).join('')}
 function observationSummary(e){return Object.entries(e.observations||{}).map(([id,o])=>{const m=metrics.find(x=>x.id===id);return `<div class="card"><b>${escapeHtml(m?.name||'Skill')}</b>${['strengths','improvements','drills'].map(k=>(o[k]||[]).length?`<p><b>${{strengths:'Strengths',improvements:'Areas for Improvement',drills:'Recommended Drills'}[k]}:</b> ${o[k].map(escapeHtml).join('; ')}</p>`:'').join('')}${o.note?`<p><b>Coach Notes:</b> ${escapeHtml(o.note)}</p>`:''}</div>`}).join('')}
 function scoreMap(e){return e.scores||{}}
 function average(e,category){const vals=Object.entries(scoreMap(e)).filter(([id,n])=>{const m=metrics.find(m=>m.id===id);return m?.category===category&&Number(n)>0}).map(([,n])=>Number(n));return vals.length?(vals.reduce((a,b)=>a+b,0)/vals.length).toFixed(1):'—'}
@@ -150,8 +201,8 @@ async function deleteSavedEvaluation(id){
   message('Evaluation deleted. Progress trends updated. Existing improvement plans were kept.');
  }catch(e){error(e)}
 }
-function startEditEvaluation(id){const e=evaluations.find(x=>x.id===id);if(!e)return;$('editingEvaluationId').value=e.id;$('evalPlayer').value=e.player_id;$('evalDate').value=e.evaluated_at;$('evalSetting').value=e.setting;$('evalLevel').value=e.level||2;renderMetricInputs();Object.entries(e.observations||{}).forEach(([metricId,entry])=>{for(const kind of ['strengths','improvements','drills']){const picker=document.querySelector(`[data-observation="${metricId}"][data-kind="${kind}"]`);if(picker){const saved=entry[kind]||[];const known=new Set([...picker.querySelectorAll('input[type="checkbox"]')].map(o=>o.value));picker.querySelectorAll('input[type="checkbox"]').forEach(o=>o.checked=saved.includes(o.value));const custom=picker.querySelector('[data-custom-response]');if(custom)custom.value=saved.filter(x=>!known.has(x)).join('; ');updateResponseCount(picker)}}const note=document.querySelector(`[data-custom-note="${metricId}"]`);if(note)note.value=entry.note||''});$('strengths').value=e.strengths||'';$('weaknesses').value=e.weaknesses||'';$('coachNotes').value=e.notes||'';document.querySelectorAll('[data-score]').forEach(s=>s.value=e.scores?.[s.dataset.score]??'');$('evaluationHeading').textContent='Edit Saved Evaluation';$('saveEvaluation').textContent='Update Evaluation';$('cancelEvaluationEdit').classList.remove('hide');setTab('evaluation');renderPrevious();window.scrollTo({top:0,behavior:'smooth'})}
-function resetEvaluation(){ $('editingEvaluationId').value='';$('evaluationHeading').textContent='Player Evaluation';$('saveEvaluation').textContent='Save Evaluation';$('cancelEvaluationEdit').classList.add('hide');['strengths','weaknesses','coachNotes'].forEach(id=>$(id).value='');document.querySelectorAll('[data-score]').forEach(s=>s.value='');renderPrevious()}
+function startEditEvaluation(id){const e=evaluations.find(x=>x.id===id);if(!e)return;$('editingEvaluationId').value=e.id;$('evalPlayer').value=e.player_id;$('evalDate').value=e.evaluated_at;$('evalSetting').value=e.setting;$('evalLevel').value=e.level||2;renderMetricInputs();Object.entries(e.observations||{}).forEach(([metricId,entry])=>{for(const kind of ['strengths','improvements','drills']){const picker=document.querySelector(`[data-observation="${metricId}"][data-kind="${kind}"]`);if(picker){const saved=entry[kind]||[];const known=new Set([...picker.querySelectorAll('input[type="checkbox"]')].map(o=>o.value));picker.querySelectorAll('input[type="checkbox"]').forEach(o=>o.checked=saved.includes(o.value));const custom=picker.querySelector('[data-custom-response]');if(custom)custom.value=saved.filter(x=>!known.has(x)).join('; ');updateResponseCount(picker)}}const note=document.querySelector(`[data-custom-note="${metricId}"]`);if(note)note.value=entry.note||''});$('strengths').value=e.strengths||'';$('weaknesses').value=e.weaknesses||'';$('coachNotes').value=e.notes||'';document.querySelectorAll('[data-score]').forEach(s=>s.value=e.scores?.[s.dataset.score]??'');$('evaluationHeading').textContent='Edit Saved Evaluation';$('saveEvaluation').textContent='Update Evaluation';$('quickSave').textContent='Update Evaluation';$('cancelEvaluationEdit').classList.remove('hide');setTab('evaluation');quickIndex=0;setEvalMode('quick');renderPrevious();window.scrollTo({top:0,behavior:'smooth'})}
+function resetEvaluation(){ $('editingEvaluationId').value='';$('evaluationHeading').textContent='Player Evaluation';$('saveEvaluation').textContent='Save Evaluation';$('quickSave').textContent='Save Evaluation';$('cancelEvaluationEdit').classList.add('hide');['strengths','weaknesses','coachNotes'].forEach(id=>$(id).value='');document.querySelectorAll('[data-score]').forEach(s=>s.value='');quickIndex=0;quickLoad();renderPrevious()}
 
 const PLAN_TEMPLATES={
  Offense:['Review the hitting fundamentals and identify the specific movement or decision to improve.','Complete 3 tee-work sessions per week: 3 sets of 10 purposeful swings with coach feedback.','Progress to front toss and soft toss with 3 sets of 10 quality repetitions, focusing on the same skill.','Apply the movement in controlled machine or live batting practice once fundamentals are consistent.','Reevaluate in 14 days using the same scouting criterion and record video or observable results.'],
@@ -185,10 +236,38 @@ $('savePlayerEdit').onclick=async()=>{try{const id=$('editPlayerId').value;const
 $('template').onclick=()=>download('player_roster_template.csv','First Name,Last Name,Team,Jersey Number\r\nJane,Doe,14U A,12\r\n');
 $('csv').onchange=async ev=>{try{const file=ev.target.files[0];if(!file)return;const bytes=await file.arrayBuffer();let raw=new TextDecoder('utf-8').decode(bytes);if(raw.includes('\uFFFD'))raw=new TextDecoder('windows-1252').decode(bytes);const rows=csvRows(raw.replace(/^\uFEFF/,'')),headers=rows.shift().map(s=>s.trim().toLowerCase().replace(/[^a-z]/g,''));const idx=(...names)=>headers.findIndex(h=>names.includes(h));const first=idx('firstname','first'),last=idx('lastname','last'),name=idx('name','playername'),team=idx('team','agegroup','division'),jersey=idx('jerseynumber','jersey','number');if(team<0||(name<0&&(first<0||last<0)))throw Error('CSV needs Team and Name or First Name / Last Name columns.');let added=0,skipped=0;for(const r of rows){const full=name>=0?(r[name]||'').trim().split(/\s+/):[];const f=cleanName(first>=0?r[first]:full[0]),l=cleanName(last>=0?r[last]:full.slice(1).join(' '));if(!f||!l||!r[team]){skipped++;continue}if(await addPlayer(f,l,r[team],jersey>=0?r[jersey]:'') )added++;else skipped++}await loadAll();$('importInfo').textContent=`Imported ${added} players; skipped ${skipped} duplicates/incomplete rows.`;message('Roster import finished')}catch(e){error(e)}finally{ev.target.value=''}};
 
-$('evalPlayer').onchange=renderPrevious;
+
+// V15: Level-specific curriculum and certification records are independent of historical evaluations.
+const LEVEL_NAMES=['','Foundation','Development','Advanced','Elite'];
+const LEVEL_GUIDANCE={
+ 1:'Demonstrates correct setup, basic footwork, throwing mechanics and fundamental rules.',
+ 2:'Executes mechanics consistently, handles routine plays and understands coverage responsibilities.',
+ 3:'Executes at game speed, adjusts to situations, anticipates reads and makes sound decisions.',
+ 4:'Demonstrates advanced position-specific mastery, complex defensive rotations and execution under pressure.'
+};
+async function loadCertificationData(){
+ const [a,b]=await Promise.all([db.from('pd_level_skills').select('*').eq('org',org),db.from('pd_certifications').select('*').eq('org',org).order('created_at',{ascending:false})]);
+ if(a.error||b.error)throw Error('V15 database setup required: run migration-v15.sql in Supabase SQL Editor. '+(a.error?.message||b.error?.message));
+ levelSkills=a.data||[];certifications=b.data||[];
+}
+function levelSkill(metricId,level){const x=levelSkills.find(r=>r.metric_id===metricId&&r.level===level);const m=metrics.find(r=>r.id===metricId);return {required:x?.required??(level===1?['Hitting Mechanics','Baserunning','Fielding Fundamentals','Throwing Accuracy','Attitude','Effort'].includes(m?.name):level===2?['Hitting Mechanics','Contact / Barrel Control','Plate Discipline','Baserunning','Fielding Fundamentals','Throwing Accuracy','Range / First Step','Baseball IQ','Attitude','Effort'].includes(m?.name):level===3?m?.name!=='Body Language':true),description:x?.description||`${m?.description||''}. ${LEVEL_GUIDANCE[level]}`,id:x?.id};}
+function requiredForLevel(level){return metrics.filter(m=>m.active&&levelSkill(m.id,level).required)}
+function gradeForScores(scores,level){const required=requiredForLevel(level),rated=required.filter(m=>Number(scores?.[m.id])>=1&&Number(scores?.[m.id])<=8),earned=rated.reduce((a,m)=>a+Number(scores[m.id]),0),pct=required.length?earned/(required.length*8)*100:0;return {required:required.length,rated:rated.length,earned,max:required.length*8,pct,complete:required.length>0&&rated.length===required.length,passed:required.length>0&&rated.length===required.length&&pct>=90};}
+function renderCertifications(){const el=$('certificationRows');if(!el)return;const previous=$('certPlayer').value;$('certPlayer').innerHTML='<option value="">Choose player...</option>'+players.map(p=>`<option value="${p.id}">${escapeHtml(fullName(p))} — ${escapeHtml(p.team)}</option>`).join('');if(players.some(p=>p.id===previous))$('certPlayer').value=previous;renderCertPlayer()}
+function renderCertPlayer(){const id=$('certPlayer').value,el=$('certificationRows');if(!id){el.innerHTML='<p class="muted">Select a player to view testing history and approve advancement.</p>';return}const history=evaluations.filter(e=>e.player_id===id).slice().reverse();el.innerHTML=history.map(e=>{const g=gradeForScores(e.scores,e.level||2),cert=certifications.find(c=>c.evaluation_id===e.id);return `<div class="card"><b>${escapeHtml(e.evaluated_at)} · Level ${e.level||2} — ${LEVEL_NAMES[e.level||2]}</b><div class="score">${g.pct.toFixed(1)}%</div><p>${g.rated}/${g.required} required skills · ${g.earned}/${g.max} points · ${!g.complete?'INCOMPLETE':g.passed?'PASS':'NOT YET PASSED'}</p><p>${cert?`<b>Approved:</b> ${escapeHtml(cert.approved_by)} on ${escapeHtml((cert.created_at||'').slice(0,10))}`:g.passed?'Eligible for staff approval':'Development and retesting required'}</p>${g.passed&&!cert&&isAdmin?`<button class="primary" data-approve-cert="${e.id}">Approve Level ${e.level||2} Certification</button>`:''}</div>`}).join('')||'<p>No evaluations saved yet.</p>'}
+function renderLevelEditor(){const el=$('levelSkillRows');if(!el)return;const level=Number($('editorLevel').value||1);el.innerHTML=metrics.map(m=>{const c=levelSkill(m.id,level);return `<div class="metric"><div style="flex:1"><b>${escapeHtml(m.name)}</b><div class="muted"><small>${escapeHtml(c.description)}</small></div><small>${c.required?'Required for certification':'Optional / not tested'}</small></div>${isAdmin?`<button type="button" data-edit-level="${m.id}">Edit</button>`:''}</div>`}).join('');$('editorHelp').textContent=isAdmin?'Edit each skill independently for each level. Changes apply to future testing only.':'Only designated evaluation administrators can change level standards.'}
+async function editLevelSkill(id){if(!isAdmin)return;const level=Number($('editorLevel').value),m=metrics.find(x=>x.id===id),c=levelSkill(id,level);if(!m)return;const description=prompt(`Level ${level} — ${m.name}\nDescribe what the player must demonstrate:`,c.description);if(description===null)return;const required=confirm('Should this skill be REQUIRED for certification at this level?\nOK = Required; Cancel = Optional');try{check(await db.from('pd_level_skills').upsert({org,metric_id:id,level,description:description.trim(),required},{onConflict:'org,metric_id,level'}));await loadAll();message('Level-specific skill standard saved.')}catch(e){error(e)}}
+async function editBaseSkill(id){if(!isAdmin){message('Only an evaluation administrator can edit shared skills.');return}const m=metrics.find(x=>x.id===id);if(!m)return;const name=prompt('Skill name:',m.name);if(name===null)return;const description=prompt('Skill description:',m.description);if(description===null)return;if(!name.trim())return error(Error('Skill name is required.'));try{check(await db.from('pd_metrics').update({name:name.trim(),description:description.trim()}).eq('id',id).eq('org',org));await loadAll();message('Skill updated. Historical scores preserved.')}catch(e){error(e)}}
+$('editorLevel').onchange=renderLevelEditor;
+$('levelSkillRows').onclick=e=>{const b=e.target.closest('[data-edit-level]');if(b)editLevelSkill(b.dataset.editLevel)};
+$('libraryRows').addEventListener('click',e=>{const b=e.target.closest('[data-edit-metric]');if(b)editBaseSkill(b.dataset.editMetric)});
+$('certPlayer').onchange=renderCertPlayer;
+$('certificationRows').onclick=async e=>{const b=e.target.closest('[data-approve-cert]');if(!b||!isAdmin)return;const record=evaluations.find(x=>x.id===b.dataset.approveCert);if(!record)return;const g=gradeForScores(record.scores,record.level||2);if(!g.passed)return error(Error('All required skills must be scored and total at least 90%.'));if(!confirm(`Approve Level ${record.level} certification at ${g.pct.toFixed(1)}%?`))return;try{check(await db.from('pd_certifications').insert({org,player_id:record.player_id,evaluation_id:record.id,level:record.level,score_percent:g.pct,approved_by:session.user.email}));await loadAll();$('certPlayer').value=record.player_id;renderCertPlayer();message('Certification approved and recorded.')}catch(err){error(err)}};
+
+$('evalPlayer').onchange=()=>{quickIndex=0;quickLoad();renderPrevious()};
 $('metricInputs').onchange=renderScoreComparison;
 $('cancelEvaluationEdit').onclick=resetEvaluation;
-$('saveEvaluation').onclick=async()=>{try{const id=$('evalPlayer').value;if(!id)throw Error('Select a player.');const editExisting=evaluations.find(e=>e.id===$('editingEvaluationId').value);const scores={...(editExisting?.scores||{})};document.querySelectorAll('[data-score]').forEach(s=>{if(s.value)scores[s.dataset.score]=Number(s.value)});if(!Object.keys(scores).length)throw Error('Score at least one criterion.');const observations={...(editExisting?.observations||{}),...getSelections()};const payload={org,player_id:id,evaluated_at:$('evalDate').value,setting:$('evalSetting').value,coach_email:session.user.email,scores,strengths:$('strengths').value,weaknesses:$('weaknesses').value,notes:$('coachNotes').value,level:Number($('evalLevel').value),observations};const editId=$('editingEvaluationId').value;if(editId){check(await db.from('pd_evaluations').update(payload).eq('id',editId).eq('org',org))}else{check(await db.from('pd_evaluations').insert(payload))}resetEvaluation();await loadAll();$('progressPlayer').value=id;renderProgress();renderSavedEvaluations();$('planPlayer').value=id;if(!editId){makePlanDraft();setTab('plans');message('Evaluation saved. Suggested improvement plan is ready to review and save.')}else{setTab('progress');message('Saved evaluation updated; trends recalculated.')}}catch(e){error(e)}};
+$('saveEvaluation').onclick=async()=>{try{const id=$('evalPlayer').value;if(!id)throw Error('Select a player.');const editExisting=evaluations.find(e=>e.id===$('editingEvaluationId').value);const scores={...(editExisting?.scores||{})};document.querySelectorAll('[data-score]').forEach(s=>{if(s.value)scores[s.dataset.score]=Number(s.value)});if(!Object.keys(scores).length)throw Error('Score at least one criterion.');const grade=gradeForScores(scores,Number($('evalLevel').value));const observations={...(editExisting?.observations||{}),...getSelections()};const payload={org,player_id:id,evaluated_at:$('evalDate').value,setting:$('evalSetting').value,coach_email:session.user.email,scores,strengths:$('strengths').value,weaknesses:$('weaknesses').value,notes:$('coachNotes').value,level:Number($('evalLevel').value),observations};const editId=$('editingEvaluationId').value;if(editId){check(await db.from('pd_evaluations').update(payload).eq('id',editId).eq('org',org))}else{check(await db.from('pd_evaluations').insert(payload))}resetEvaluation();await loadAll();message(`Evaluation recorded: ${grade.pct.toFixed(1)}% — ${grade.complete?(grade.passed?'PASS, pending approval':'below 90%'): 'incomplete; all required skills needed for certification'}`);$('progressPlayer').value=id;renderProgress();renderSavedEvaluations();$('planPlayer').value=id;if(!editId){makePlanDraft();setTab('plans');message('Evaluation saved. Suggested improvement plan is ready to review and save.')}else{setTab('progress');message('Saved evaluation updated; trends recalculated.')}}catch(e){error(e)}};
 $('progressPlayer').onchange=()=>{renderProgress();renderSavedEvaluations()};
 $('savedEvaluationList').onclick=e=>{const del=e.target.closest('[data-delete-eval]');if(del){deleteSavedEvaluation(del.dataset.deleteEval);return}const btn=e.target.closest('[data-edit-eval]');if(btn)startEditEvaluation(btn.dataset.editEval)};
 $('printProgress').onclick=()=>window.print();
@@ -242,7 +321,17 @@ async function bootDatabase(){
 bootDatabase();
 
 
-$('evalLevel').onchange=()=>{renderMetricInputs();renderPrevious()};
+$('evalLevel').onchange=()=>{renderMetricInputs();quickIndex=0;quickLoad();renderPrevious()};
+$('quickModeBtn').onclick=()=>setEvalMode('quick');
+$('detailedModeBtn').onclick=()=>setEvalMode('detailed');
+$('quickSave').onclick=()=>$('saveEvaluation').click();
+$('quickPrev').onclick=()=>quickAdvance(-1);
+$('quickSkip').onclick=()=>quickAdvance(1);
+$('quickNext').onclick=()=>quickAdvance(1);
+$('quickRatings').onclick=e=>{const b=e.target.closest('[data-quick-rating]');if(!b)return;const card=quickCurrent();if(!card)return;const score=card.querySelector('[data-score]');score.value=score.value===b.dataset.quickRating?'':b.dataset.quickRating;score.dispatchEvent(new Event('change',{bubbles:true}));quickLoad()};
+for(const [id,kind] of [['quickStrength','strengths'],['quickImprovement','improvements'],['quickDrill','drills']])$(id).onchange=()=>quickSetResponse(kind,$(id));
+$('quickNote').oninput=()=>{const card=quickCurrent();const note=card?.querySelector('[data-custom-note]');if(note)note.value=$('quickNote').value};
+
 $('responseMetric').onchange=renderResponseLibrary;
 $('responseType').onchange=renderResponseLibrary;
 $('addResponse').onclick=async()=>{try{if(!isAdmin)throw Error('Administrator access required');const response=$('responseText').value.trim();if(!response)throw Error('Enter a response');check(await db.from('pd_response_options').insert({org,metric_id:$('responseMetric').value,kind:$('responseType').value,response,active:true}));$('responseText').value='';await loadResponseOptions();renderResponseLibrary();renderMetricInputs();message('Shared response added')}catch(e){error(e)}};
