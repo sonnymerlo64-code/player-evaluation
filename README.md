@@ -1,1 +1,3 @@
 V16 — removes the manual database URL/key entry screen. Configure SUPABASE_URL and SUPABASE_PUBLISHABLE_KEY once in Vercel Project Settings > Environment Variables (Production, Preview as needed), then redeploy. Only publishable/anon key, NEVER service role. If missing, app shows a retry/error message, not a credential form. All V15 features and schema retained.
+
+V17: FCA organization is fixed to fca-baseball after authentication. No organization code prompt, even for new browsers. Existing records are unchanged. IMPORTANT: V15 migration-v15.sql is still required to enable level certification; run it in existing Supabase SQL editor once.
